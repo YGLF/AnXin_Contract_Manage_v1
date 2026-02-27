@@ -211,6 +211,91 @@ AnXin_Contract_Manage/
 3. 访问前端：http://localhost:3000
 4. 使用注册功能创建管理员账户，或直接登录测试
 
+## Docker 部署
+
+### 使用 Docker Compose 快速部署（推荐）
+
+这是最简单的方式，会自动启动 MySQL、后端和前端服务。
+
+1. 确保已安装 Docker 和 Docker Compose
+2. 在项目根目录执行：
+```bash
+docker-compose up -d
+```
+
+3. 访问系统：
+- 前端：http://localhost
+- 后端 API：http://localhost:8000
+- API 文档：http://localhost:8000/docs
+
+4. 停止服务：
+```bash
+docker-compose down
+```
+
+5. 查看日志：
+```bash
+docker-compose logs -f
+```
+
+### 手动构建和部署
+
+#### 构建并运行后端
+
+1. 构建后端镜像：
+```bash
+docker build -t contract-backend .
+```
+
+2. 运行后端容器：
+```bash
+docker run -d -p 8000:8000 \
+  -e MYSQL_HOST=mysql \
+  -e MYSQL_PORT=3306 \
+  -e MYSQL_USER=contract_user \
+  -e MYSQL_PASSWORD=contract123 \
+  -e MYSQL_DATABASE=contract_manage \
+  --name contract-backend \
+  contract-backend
+```
+
+#### 构建并运行前端
+
+1. 构建前端镜像：
+```bash
+cd frontend
+docker build -t contract-frontend .
+```
+
+2. 运行前端容器：
+```bash
+docker run -d -p 80:80 --name contract-frontend contract-frontend
+```
+
+### 部署到服务器
+
+1. 将项目代码上传到服务器
+2. 修改 `docker-compose.yml` 中的端口映射（如需要）
+3. 修改数据库密码等敏感配置
+4. 运行 `docker-compose up -d`
+5. 配置反向代理（如 Nginx）和 SSL 证书
+
+### 数据持久化
+
+Docker Compose 配置已包含 MySQL 数据卷持久化，数据存储在 Docker 卷 `mysql_data` 中。即使删除容器，数据也不会丢失。
+
+### 备份数据
+
+备份 MySQL 数据：
+```bash
+docker exec contract_mysql mysqldump -u contract_user -pcontract123 contract_manage > backup.sql
+```
+
+恢复 MySQL 数据：
+```bash
+cat backup.sql | docker exec -i contract_mysql mysql -u contract_user -pcontract123 contract_manage
+```
+
 ## 开发说明
 
 - 后端使用 FastAPI 自动生成 API 文档，访问 http://localhost:8000/docs 查看
