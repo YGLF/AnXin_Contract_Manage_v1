@@ -1,6 +1,6 @@
 # 合同管理系统
 
-基于 Python FastAPI + MySQL（后端）和 Vue3 + Element Plus（前端）的合同管理系统。
+基于 Go + Gin + MySQL（后端）和 Vue3 + Element Plus（前端）的合同管理系统。
 
 ## 功能模块
 
@@ -16,9 +16,9 @@
 ## 技术栈
 
 ### 后端
-- Python 3.8+
-- FastAPI
-- SQLAlchemy
+- Go 1.21+
+- Gin Web Framework
+- GORM
 - MySQL
 - JWT 认证
 
@@ -35,25 +35,25 @@
 
 ### 后端安装
 
-1. 进入后端目录
+1. 进入项目目录
 ```bash
 cd AnXin_Contract_Manage
 ```
 
 2. 安装依赖
 ```bash
-pip install -r requirements.txt
+go mod download
 ```
 
 3. 配置数据库
 
-编辑 `app/core/config.py` 中的数据库配置：
-```python
-MYSQL_HOST = "localhost"
-MYSQL_PORT = 3306
-MYSQL_USER = "root"
-MYSQL_PASSWORD = "your_password"
-MYSQL_DATABASE = "contract_manage"
+编辑 `.env` 文件：
+```env
+MYSQL_HOST=localhost
+MYSQL_PORT=3306
+MYSQL_USER=root
+MYSQL_PASSWORD=your_password
+MYSQL_DATABASE=contract_manage
 ```
 
 4. 创建数据库
@@ -64,7 +64,7 @@ CREATE DATABASE contract_manage CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
 
 5. 运行后端服务
 ```bash
-uvicorn main:app --reload
+go run main.go
 ```
 
 后端 API 文档地址: http://localhost:8000/docs
@@ -138,44 +138,37 @@ npm run build
 
 ```
 AnXin_Contract_Manage/
-├── app/                      # 后端目录
-│   ├── api/                  # API 路由
-│   │   ├── auth.py           # 认证相关
-│   │   ├── customer.py       # 客户管理
-│   │   ├── contract.py       # 合同管理
-│   │   └── approval.py       # 审批与提醒
-│   ├── core/                 # 核心配置
-│   │   ├── config.py         # 配置文件
-│   │   ├── database.py       # 数据库连接
-│   │   └── security.py       # 安全相关
-│   ├── models/               # 数据库模型
-│   │   └── models.py
-│   ├── schemas/              # Pydantic 模型
-│   │   ├── user.py
-│   │   ├── customer.py
-│   │   ├── contract.py
-│   │   └── approval.py
-│   ├── services/             # 业务逻辑
-│   │   ├── user_service.py
-│   │   ├── customer_service.py
-│   │   ├── contract_service.py
-│   │   └── approval_service.py
-│   └── utils/                # 工具函数
-├── frontend/                 # 前端目录
+├── config/                    # 配置
+│   └── config.go              # 配置加载
+├── handlers/                  # HTTP 处理器
+│   ├── auth.go                # 认证相关
+│   ├── customer.go            # 客户管理
+│   ├── contract.go            # 合同管理
+│   └── approval.go            # 审批与提醒
+├── middleware/                # 中间件
+│   └── auth.go                # JWT 认证中间件
+├── models/                    # 数据库模型
+│   └── models.go
+├── services/                  # 业务逻辑
+│   ├── user_service.go
+│   ├── customer_service.go
+│   ├── contract_service.go
+│   └── approval_service.go
+├── frontend/                  # 前端目录
 │   ├── src/
-│   │   ├── api/              # API 接口
+│   │   ├── api/               # API 接口
 │   │   │   ├── auth.js
 │   │   │   ├── customer.js
 │   │   │   ├── contract.js
 │   │   │   └── approval.js
-│   │   ├── components/       # 公共组件
-│   │   ├── router/           # 路由配置
+│   │   ├── components/        # 公共组件
+│   │   ├── router/            # 路由配置
 │   │   │   └── index.js
-│   │   ├── store/            # 状态管理
+│   │   ├── store/             # 状态管理
 │   │   │   └── user.js
-│   │   ├── utils/            # 工具函数
+│   │   ├── utils/             # 工具函数
 │   │   │   └── request.js
-│   │   ├── views/            # 页面组件
+│   │   ├── views/             # 页面组件
 │   │   │   ├── Login.vue
 │   │   │   ├── Layout.vue
 │   │   │   ├── Dashboard.vue
@@ -189,8 +182,10 @@ AnXin_Contract_Manage/
 │   ├── index.html
 │   ├── package.json
 │   └── vite.config.js
-├── main.py                   # 后端入口
-└── requirements.txt          # 后端依赖列表
+├── main.go                    # 后端入口
+├── go.mod                     # Go 模块定义
+├── .env                       # 环境变量配置
+└── Dockerfile                 # Docker 构建文件
 ```
 
 ## 前端页面说明
@@ -206,7 +201,7 @@ AnXin_Contract_Manage/
 
 ## 使用说明
 
-1. 启动后端服务：`uvicorn main:app --reload`
+1. 启动后端服务：`go run main.go`
 2. 启动前端服务：`cd frontend && npm run dev`
 3. 访问前端：http://localhost:3000
 4. 使用注册功能创建管理员账户，或直接登录测试
@@ -226,7 +221,6 @@ docker-compose up -d
 3. 访问系统：
 - 前端：http://localhost
 - 后端 API：http://localhost:8000
-- API 文档：http://localhost:8000/docs
 
 4. 停止服务：
 ```bash
@@ -298,8 +292,8 @@ cat backup.sql | docker exec -i contract_mysql mysql -u contract_user -pcontract
 
 ## 开发说明
 
-- 后端使用 FastAPI 自动生成 API 文档，访问 http://localhost:8000/docs 查看
+- 后端使用 Gin 框架，路由自动注册
 - 前端使用 Vue 3 Composition API 开发
 - 使用 Pinia 进行状态管理
 - 使用 Element Plus 作为 UI 组件库
-- 使用 ECharts 进行数据可视化# AnXin_Contract_Manage
+- 使用 ECharts 进行数据可视化
