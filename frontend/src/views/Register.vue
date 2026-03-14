@@ -1,51 +1,145 @@
 <template>
   <div class="register-container">
-    <el-card class="register-card">
-      <h2 class="register-title">用户注册</h2>
-      <el-form ref="registerFormRef" :model="registerForm" :rules="registerRules" size="large">
-        <el-form-item prop="username">
-          <el-input v-model="registerForm.username" placeholder="请输入用户名" prefix-icon="User" />
-        </el-form-item>
-        <el-form-item prop="email">
-          <el-input v-model="registerForm.email" placeholder="请输入邮箱" prefix-icon="Message" />
-        </el-form-item>
-        <el-form-item prop="password">
-          <el-input
-            v-model="registerForm.password"
-            type="password"
-            placeholder="请输入密码"
-            prefix-icon="Lock"
-            show-password
-          />
-        </el-form-item>
-        <el-form-item prop="confirmPassword">
-          <el-input
-            v-model="registerForm.confirmPassword"
-            type="password"
-            placeholder="请确认密码"
-            prefix-icon="Lock"
-            show-password
-          />
-        </el-form-item>
-        <el-form-item prop="full_name">
-          <el-input v-model="registerForm.full_name" placeholder="请输入姓名" prefix-icon="UserFilled" />
-        </el-form-item>
-        <el-form-item prop="phone">
-          <el-input v-model="registerForm.phone" placeholder="请输入手机号" prefix-icon="Phone" />
-        </el-form-item>
-        <el-form-item prop="department">
-          <el-input v-model="registerForm.department" placeholder="请输入部门" prefix-icon="OfficeBuilding" />
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" :loading="loading" style="width: 100%" @click="handleRegister">
-            注 册
-          </el-button>
-        </el-form-item>
-        <div class="login-link">
-          已有账号？<router-link to="/login">立即登录</router-link>
+    <div class="register-left">
+      <div class="brand-section">
+        <div class="brand-logo">
+          <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect width="48" height="48" rx="12" fill="url(#regLogoGrad)"/>
+            <path d="M14 16h20v4H14zM14 24h16v4H14zM14 32h20v4H14z" fill="white" opacity="0.9"/>
+            <circle cx="36" cy="36" r="8" fill="white" opacity="0.2"/>
+            <defs>
+              <linearGradient id="regLogoGrad" x1="0" y1="0" x2="48" y2="48">
+                <stop stop-color="#6366F1"/>
+                <stop offset="1" stop-color="#8B5CF6"/>
+              </linearGradient>
+            </defs>
+          </svg>
         </div>
-      </el-form>
-    </el-card>
+        <h1 class="brand-title">安心合同</h1>
+        <p class="brand-subtitle">智能合同管理解决方案</p>
+      </div>
+      
+      <div class="benefits-list">
+        <div class="benefit-item">
+          <div class="benefit-icon">
+            <el-icon><Shield /></el-icon>
+          </div>
+          <div class="benefit-text">
+            <h3>安全可靠</h3>
+            <p>企业级数据加密保护</p>
+          </div>
+        </div>
+        <div class="benefit-item">
+          <div class="benefit-icon">
+            <el-icon><TrendCharts /></el-icon>
+          </div>
+          <div class="benefit-text">
+            <h3>高效管理</h3>
+            <p>全流程数字化跟踪</p>
+          </div>
+        </div>
+        <div class="benefit-item">
+          <div class="benefit-icon">
+            <el-icon><Connection /></el-icon>
+          </div>
+          <div class="benefit-text">
+            <h3>随时随地</h3>
+            <p>云端同步随时访问</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="register-right">
+      <div class="register-card">
+        <div class="register-header">
+          <h2>创建账号</h2>
+          <p>开始使用安心合同管理系统</p>
+        </div>
+        
+        <el-form ref="registerFormRef" :model="registerForm" :rules="registerRules" size="large">
+          <div class="form-row">
+            <el-form-item prop="username">
+              <el-input 
+                v-model="registerForm.username" 
+                placeholder="用户名"
+                :prefix-icon="User"
+                clearable
+              />
+            </el-form-item>
+            <el-form-item prop="full_name">
+              <el-input 
+                v-model="registerForm.full_name" 
+                placeholder="姓名"
+                :prefix-icon="UserFilled"
+                clearable
+              />
+            </el-form-item>
+          </div>
+          
+          <el-form-item prop="email">
+            <el-input 
+              v-model="registerForm.email" 
+              placeholder="邮箱地址"
+              :prefix-icon="Message"
+              clearable
+            />
+          </el-form-item>
+          
+          <el-form-item prop="phone">
+            <el-input 
+              v-model="registerForm.phone" 
+              placeholder="手机号（可选）"
+              :prefix-icon="Phone"
+              clearable
+            />
+          </el-form-item>
+          
+          <el-form-item prop="password">
+            <el-input
+              v-model="registerForm.password"
+              type="password"
+              placeholder="设置密码（至少6位）"
+              :prefix-icon="Lock"
+              show-password
+              clearable
+            />
+          </el-form-item>
+          
+          <el-form-item prop="confirmPassword">
+            <el-input
+              v-model="registerForm.confirmPassword"
+              type="password"
+              placeholder="确认密码"
+              :prefix-icon="Lock"
+              show-password
+              clearable
+            />
+          </el-form-item>
+          
+          <el-form-item>
+            <el-button 
+              type="primary" 
+              :loading="loading" 
+              class="register-btn"
+              @click="handleRegister"
+            >
+              <el-icon v-if="!loading"><Plus /></el-icon>
+              {{ loading ? '注册中...' : '创 建 账 号' }}
+            </el-button>
+          </el-form-item>
+        </el-form>
+        
+        <div class="login-prompt">
+          <span>已有账号？</span>
+          <router-link to="/login">立即登录</router-link>
+        </div>
+      </div>
+      
+      <div class="register-footer">
+        <p>注册即表示同意 <a href="#">服务条款</a> 和 <a href="#">隐私政策</a></p>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -53,6 +147,10 @@
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { 
+  User, UserFilled, Message, Phone, Lock, Plus,
+  Shield, TrendCharts, Connection 
+} from '@element-plus/icons-vue'
 import { register } from '@/api/auth'
 
 const router = useRouter()
@@ -101,7 +199,7 @@ const registerRules = {
   ],
   password: [
     { required: true, validator: validatePass, trigger: 'blur' },
-    { min: 6, max: 20, message: '密码长度在 6 到 20 个字符', trigger: 'blur' }
+    { min: 6, message: '密码长度至少6位', trigger: 'blur' }
   ],
   confirmPassword: [
     { required: true, validator: validatePass2, trigger: 'blur' }
@@ -121,7 +219,7 @@ const handleRegister = async () => {
       try {
         const { confirmPassword, ...data } = registerForm
         await register(data)
-        ElMessage.success('注册成功，请登录')
+        ElMessage.success({ message: '注册成功，请登录', duration: 2000 })
         router.push('/login')
       } catch (error) {
         console.error('注册失败:', error)
@@ -136,35 +234,233 @@ const handleRegister = async () => {
 <style scoped>
 .register-container {
   display: flex;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #F8FAFC 0%, #E2E8F0 100%);
+}
+
+.register-left {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 60px;
+  background: linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.register-left::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -50%;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+}
+
+.brand-section {
+  position: relative;
+  z-index: 1;
+  margin-bottom: 60px;
+}
+
+.brand-logo {
+  width: 64px;
+  height: 64px;
+  margin-bottom: 24px;
+}
+
+.brand-logo svg {
+  width: 100%;
+  height: 100%;
+}
+
+.brand-title {
+  font-size: 36px;
+  font-weight: 700;
+  color: white;
+  margin: 0 0 8px;
+  letter-spacing: 2px;
+}
+
+.brand-subtitle {
+  font-size: 16px;
+  color: rgba(255, 255, 255, 0.7);
+  margin: 0;
+}
+
+.benefits-list {
+  position: relative;
+  z-index: 1;
+}
+
+.benefit-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.benefit-icon {
+  width: 44px;
+  height: 44px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.benefit-text h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: white;
+  margin: 0 0 4px;
+}
+
+.benefit-text p {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.6);
+  margin: 0;
+}
+
+.register-right {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
-  min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 40px;
+  position: relative;
 }
 
 .register-card {
-  width: 450px;
-  padding: 20px;
+  width: 100%;
+  max-width: 440px;
+  background: white;
+  border-radius: 24px;
+  padding: 40px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.08);
 }
 
-.register-title {
+.register-header {
   text-align: center;
-  margin-bottom: 30px;
-  color: #333;
+  margin-bottom: 32px;
 }
 
-.login-link {
+.register-header h2 {
+  font-size: 26px;
+  font-weight: 600;
+  color: #1E293B;
+  margin: 0 0 8px;
+}
+
+.register-header p {
+  font-size: 14px;
+  color: #64748B;
+  margin: 0;
+}
+
+.form-row {
+  display: flex;
+  gap: 16px;
+}
+
+.form-row .el-form-item {
+  flex: 1;
+}
+
+.register-btn {
+  width: 100%;
+  height: 48px;
+  font-size: 16px;
+  font-weight: 500;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%);
+  border: none;
+  transition: all 0.3s ease;
+}
+
+.register-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(99, 102, 241, 0.35);
+}
+
+.login-prompt {
   text-align: center;
-  margin-top: 10px;
-  color: #666;
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid #E2E8F0;
+  color: #64748B;
+  font-size: 14px;
 }
 
-.login-link a {
-  color: #409eff;
+.login-prompt a {
+  color: #6366F1;
+  text-decoration: none;
+  font-weight: 500;
+  margin-left: 4px;
+}
+
+.login-prompt a:hover {
+  color: #4F46E5;
+}
+
+.register-footer {
+  margin-top: 24px;
+}
+
+.register-footer p {
+  font-size: 12px;
+  color: #94A3B8;
+  margin: 0;
+  text-align: center;
+}
+
+.register-footer a {
+  color: #6366F1;
   text-decoration: none;
 }
 
-.login-link a:hover {
-  text-decoration: underline;
+:deep(.el-input__wrapper) {
+  border-radius: 10px;
+  padding: 8px 16px;
+  box-shadow: 0 0 0 1px #E2E8F0 inset;
+  transition: all 0.2s;
+}
+
+:deep(.el-input__wrapper:hover) {
+  box-shadow: 0 0 0 1px #CBD5E1 inset;
+}
+
+:deep(.el-input__wrapper.is-focus) {
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2), 0 0 0 1px #6366F1 inset;
+}
+
+:deep(.el-form-item) {
+  margin-bottom: 16px;
+}
+
+@media (max-width: 1024px) {
+  .register-left {
+    display: none;
+  }
+  
+  .register-right {
+    padding: 24px;
+  }
+  
+  .register-card {
+    padding: 32px 24px;
+  }
+  
+  .form-row {
+    flex-direction: column;
+    gap: 0;
+  }
 }
 </style>
