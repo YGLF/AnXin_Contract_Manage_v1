@@ -20,7 +20,7 @@ type ValidationRule struct {
 var (
 	emailRegex    = regexp.MustCompile(`^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$`)
 	phoneRegex    = regexp.MustCompile(`^1[3-9]\d{9}$`)
-	usernameRegex = regexp.MustCompile(`^[a-zA-Z0-9_\u4e00-\u9fa5]{3,20}$`)
+	usernameRegex = regexp.MustCompile(`^[a-zA-Z0-9_]{3,20}$`)
 	alphanumeric  = regexp.MustCompile(`^[a-zA-Z0-9]+$`)
 )
 
