@@ -287,6 +287,24 @@ curl -X GET http://localhost:8000/api/auth/users \
 
 默认 Token 有效期为 30 分钟，可在环境变量中修改 `ACCESS_TOKEN_EXPIRE_MINUTES`。
 
+### 默认超级管理员
+
+程序首次启动时会自动创建超级管理员账号，方便首次登录系统。
+
+| 用户名 | 密码 | 角色 |
+|--------|------|------|
+| admin | admin123 | admin |
+
+如需修改管理员账号信息，可在 `.env` 中配置：
+
+```env
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=admin123
+ADMIN_EMAIL=admin@example.com
+```
+
+> 注意：如果管理员账号已存在，则不会重复创建。
+
 ## API 端点
 
 ### 公共端点（无需认证）
@@ -501,6 +519,9 @@ AnXin_Contract_Manage/
 | JWT_ALGORITHM | JWT 算法 | HS256 | 否 |
 | ACCESS_TOKEN_EXPIRE_MINUTES | Token 过期时间(分钟) | 30 | 否 |
 | UPLOAD_DIR | 文件上传目录 | uploads | 否 |
+| ADMIN_USERNAME | 超级管理员用户名 | admin | 否 |
+| ADMIN_PASSWORD | 超级管理员密码 | admin123 | 否 |
+| ADMIN_EMAIL | 超级管理员邮箱 | admin@example.com | 否 |
 
 ### SECRET_KEY 安全建议
 
@@ -607,6 +628,22 @@ docker-compose down -v
 - MySQL 服务是否启动
 - `.env` 中的数据库配置是否正确
 - 数据库用户是否有权限访问数据库
+
+### WSL 连接 Windows MySQL
+
+如果后端运行在 WSL 中，数据库在 Windows 上，配置如下：
+
+1. 获取 Windows IP（在 WSL 中执行）：
+   ```bash
+   cat /etc/resolv.conf
+   ```
+
+2. 在 `.env` 中配置：
+   ```env
+   MYSQL_HOST=172.x.x.x  # 从上面获取的 IP
+   ```
+
+3. 确保 Windows 防火墙允许 MySQL 端口（3306）
 
 ### 2. 前端无法访问后端 API
 
