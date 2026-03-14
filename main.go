@@ -6,6 +6,8 @@ import (
 	"contract-manage/middleware"
 	"contract-manage/models"
 	"fmt"
+	"html/template"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -25,26 +27,29 @@ func main() {
 
 	r := gin.Default()
 
-	r.Use(func(c *gin.Context) {
-		c.Header("Access-Control-Allow-Origin", "*")
-		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		c.Header("Access-Control-Allow-Headers", "Origin, Content-Type, Authorization")
-		if c.Request.Method == "OPTIONS" {
-			c.AbortWithStatus(204)
-			return
-		}
-		c.Next()
-	})
+	r.SetHTMLTemplate(template.Must(template.New("").Parse("")))
+
+	r.Use(gin.Recovery())
+	r.Use(gin.Logger())
+
+	r.Use(middleware.SecureHeadersMiddleware())
+	r.Use(middleware.CORSMiddleware())
+	r.Use(middleware.RateLimitMiddleware())
+	r.Use(middleware.RequestSizeLimitMiddleware(10 << 20))
 
 	r.GET("/", func(c *gin.Context) {
 		c.JSON(200, gin.H{
-			"message": "合同管理系统 API",
+			"message": "安心合同管理系统 API",
 			"version": config.AppConfig.AppVersion,
+			"time":    time.Now().Format("2006-01-02 15:04:05"),
 		})
 	})
 
 	r.GET("/health", func(c *gin.Context) {
-		c.JSON(200, gin.H{"status": "healthy"})
+		c.JSON(200, gin.H{
+			"status": "healthy",
+			"time":   time.Now().Unix(),
+		})
 	})
 
 	authHandler := handlers.NewAuthHandler()
@@ -53,6 +58,7 @@ func main() {
 	approvalHandler := handlers.NewApprovalHandler()
 
 	auth := r.Group("/api/auth")
+	auth.Use(middleware.RateLimitMiddleware())
 	{
 		auth.POST("/register", authHandler.Register)
 		auth.POST("/login", authHandler.Login)
@@ -101,5 +107,11 @@ func main() {
 		api.GET("/statistics", approvalHandler.GetStatistics)
 	}
 
-	r.Run(":8000")
+	_ = approvalHandler
+	_ = contractHandler
+
+	addr := ":8000"
+	fmt.Printf("服务器启动在 %s\n", addr)
+	fmt.Printf("健康检查: http://localhost%s/health\n", addr)
+	r.Run(addr)
 }
