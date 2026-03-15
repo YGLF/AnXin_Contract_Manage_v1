@@ -61,6 +61,12 @@ const routes = [
         name: 'Reminders',
         component: () => import('@/views/Reminder.vue'),
         meta: { title: '到期提醒', icon: 'Bell' }
+      },
+      {
+        path: 'audit',
+        name: 'Audit',
+        component: () => import('@/views/Audit.vue'),
+        meta: { title: '审计日志', icon: 'Document', roles: ['admin', 'audit_admin'] }
       }
     ]
   }

@@ -14,9 +14,10 @@ import (
 type UserRole string
 
 const (
-	RoleAdmin   UserRole = "admin"
-	RoleManager UserRole = "manager"
-	RoleUser    UserRole = "user"
+	RoleAdmin      UserRole = "admin"
+	RoleManager    UserRole = "manager"
+	RoleUser       UserRole = "user"
+	RoleAuditAdmin UserRole = "audit_admin"
 )
 
 type ContractStatus string
@@ -264,6 +265,23 @@ type Reminder struct {
 	CreatedAt    time.Time  `json:"created_at"`
 }
 
+type AuditLog struct {
+	ID         uint      `gorm:"primaryKey" json:"id"`
+	UserID     uint      `gorm:"index" json:"user_id"`
+	Username   string    `gorm:"size:100" json:"username"`
+	Action     string    `gorm:"size:100" json:"action"`
+	Module     string    `gorm:"size:50" json:"module"`
+	Method     string    `gorm:"size:20" json:"method"`
+	Path       string    `gorm:"size:255" json:"path"`
+	IPAddress  string    `gorm:"size:50" json:"ip_address"`
+	UserAgent  string    `gorm:"type:text" json:"user_agent"`
+	Request    string    `gorm:"type:text" json:"request"`
+	Response   string    `gorm:"type:text" json:"response"`
+	StatusCode int       `json:"status_code"`
+	CreatedAt  time.Time `json:"created_at"`
+	User       *User     `gorm:"foreignKey:UserID" json:"user,omitempty"`
+}
+
 var DB *gorm.DB
 
 func InitDB() error {
@@ -297,6 +315,7 @@ func AutoMigrate() error {
 		&ContractLifecycleEvent{},
 		&Reminder{},
 		&StatusChangeRequest{},
+		&AuditLog{},
 	)
 }
 
@@ -306,6 +325,36 @@ func InitAdmin() error {
 
 	if err == nil {
 		fmt.Printf("管理员 %s 已存在\n", config.AppConfig.AdminUsername)
+	} else {
+		if err != nil && err != gorm.ErrRecordNotFound {
+			return err
+		}
+
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(config.AppConfig.AdminPassword), bcrypt.DefaultCost)
+		if err != nil {
+			return err
+		}
+
+		admin := User{
+			Username:       config.AppConfig.AdminUsername,
+			Email:          config.AppConfig.AdminEmail,
+			HashedPassword: string(hashedPassword),
+			FullName:       "系统管理员",
+			Role:           RoleAdmin,
+			IsActive:       true,
+		}
+
+		if err := DB.Create(&admin).Error; err != nil {
+			return err
+		}
+		fmt.Printf("超级管理员已创建: %s\n", config.AppConfig.AdminUsername)
+	}
+
+	var existingAuditAdmin User
+	err = DB.Where("username = ?", config.AppConfig.AuditAdminUsername).First(&existingAuditAdmin).Error
+
+	if err == nil {
+		fmt.Printf("审计管理员 %s 已存在\n", config.AppConfig.AuditAdminUsername)
 		return nil
 	}
 
@@ -313,23 +362,23 @@ func InitAdmin() error {
 		return err
 	}
 
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(config.AppConfig.AdminPassword), bcrypt.DefaultCost)
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(config.AppConfig.AuditAdminPassword), bcrypt.DefaultCost)
 	if err != nil {
 		return err
 	}
 
-	admin := User{
-		Username:       config.AppConfig.AdminUsername,
-		Email:          config.AppConfig.AdminEmail,
+	auditAdmin := User{
+		Username:       config.AppConfig.AuditAdminUsername,
+		Email:          config.AppConfig.AuditAdminEmail,
 		HashedPassword: string(hashedPassword),
-		FullName:       "系统管理员",
-		Role:           RoleAdmin,
+		FullName:       "审计管理员",
+		Role:           RoleAuditAdmin,
 		IsActive:       true,
 	}
 
-	if err := DB.Create(&admin).Error; err != nil {
+	if err := DB.Create(&auditAdmin).Error; err != nil {
 		return err
 	}
-	fmt.Printf("超级管理员已创建: %s\n", config.AppConfig.AdminUsername)
+	fmt.Printf("审计管理员已创建: %s\n", config.AppConfig.AuditAdminUsername)
 	return nil
 }

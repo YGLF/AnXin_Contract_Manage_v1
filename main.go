@@ -590,6 +590,7 @@ func main() {
 	customerHandler := handlers.NewCustomerHandler()
 	contractHandler := handlers.NewContractHandler()
 	approvalHandler := handlers.NewApprovalHandler()
+	auditHandler := handlers.NewAuditHandler()
 
 	auth := r.Group("/api/auth")
 	auth.Use(middleware.RateLimitMiddleware())
@@ -604,6 +605,7 @@ func main() {
 
 	api := r.Group("/api")
 	api.Use(middleware.AuthMiddleware())
+	api.Use(handlers.AuditLogMiddleware(handlers.GetAuditService()))
 	{
 		api.GET("/customers", customerHandler.GetCustomers)
 		api.GET("/customers/:customer_id", customerHandler.GetCustomerByID)
@@ -652,6 +654,11 @@ func main() {
 		api.GET("/expiring-contracts", approvalHandler.GetExpiringContracts)
 		api.GET("/statistics", approvalHandler.GetStatistics)
 		api.GET("/notifications/count", approvalHandler.GetNotificationCounts)
+
+		api.GET("/audit-logs", auditHandler.GetAuditLogs)
+		api.DELETE("/audit-logs/:id", auditHandler.DeleteAuditLog)
+		api.POST("/audit-logs/batch-delete", auditHandler.DeleteAuditLogs)
+		api.GET("/audit-logs/export", auditHandler.ExportAuditLogs)
 	}
 
 	_ = approvalHandler

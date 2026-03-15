@@ -50,6 +50,10 @@
             <el-icon><UserFilled /></el-icon>
             <span>用户管理</span>
           </el-menu-item>
+          <el-menu-item v-if="isAuditAdmin" index="/audit">
+            <el-icon><Document /></el-icon>
+            <span>审计日志</span>
+          </el-menu-item>
         </el-menu>
         
         <div class="sidebar-footer">
@@ -125,6 +129,11 @@ import {
 const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
+
+const isAuditAdmin = computed(() => {
+  const role = userStore.userInfo?.role
+  return role === 'admin' || role === 'audit_admin'
+})
 
 const notificationCounts = ref({
   pendingApprovals: 0,

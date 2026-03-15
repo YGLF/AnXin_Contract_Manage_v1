@@ -26,6 +26,10 @@ type Config struct {
 	AdminUsername string `mapstructure:"ADMIN_USERNAME"`
 	AdminPassword string `mapstructure:"ADMIN_PASSWORD"`
 	AdminEmail    string `mapstructure:"ADMIN_EMAIL"`
+
+	AuditAdminUsername string `mapstructure:"AUDIT_ADMIN_USERNAME"`
+	AuditAdminPassword string `mapstructure:"AUDIT_ADMIN_PASSWORD"`
+	AuditAdminEmail    string `mapstructure:"AUDIT_ADMIN_EMAIL"`
 }
 
 var AppConfig Config
@@ -48,6 +52,10 @@ func LoadConfig() error {
 	viper.SetDefault("ADMIN_USERNAME", "admin")
 	viper.SetDefault("ADMIN_PASSWORD", "admin123")
 	viper.SetDefault("ADMIN_EMAIL", "admin@example.com")
+
+	viper.SetDefault("AUDIT_ADMIN_USERNAME", "auditadmin")
+	viper.SetDefault("AUDIT_ADMIN_PASSWORD", "audit123")
+	viper.SetDefault("AUDIT_ADMIN_EMAIL", "audit@example.com")
 
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
