@@ -174,8 +174,8 @@ func SecureHeadersMiddleware() gin.HandlerFunc {
 		c.Header("X-XSS-Protection", "1; mode=block")
 		// 强制HTTPS连接
 		c.Header("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
-		// 内容安全策略
-		c.Header("Content-Security-Policy", "default-src 'self'")
+		// 内容安全策略 - 允许内联脚本和样式，以及Google Fonts
+		c.Header("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com")
 		// 引用来源策略
 		c.Header("Referrer-Policy", "strict-origin-when-cross-origin")
 		// 浏览器功能策略

@@ -272,15 +272,162 @@ curl -X GET http://localhost:8000/api/contracts \
   -H "Authorization: Bearer <token>"
 ```
 
-### 主要业务接口
+### 完整 API 接口列表
 
-| 模块 | 接口 |
-|------|------|
-| 用户管理 | /api/auth/users |
-| 客户管理 | /api/customers |
-| 合同管理 | /api/contracts |
-| 审批管理 | /api/approvals |
-| 加密服务 | /api/crypto/* |
+#### 公共端点（无需认证）
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | /api/auth/register | 用户注册 |
+| POST | /api/auth/login | 用户登录 |
+| GET | / | 服务信息 |
+| GET | /health | 健康检查 |
+
+#### 认证管理 (/api/auth)
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | /api/auth/register | 用户注册 |
+| POST | /api/auth/login | 用户登录 |
+| POST | /api/auth/refresh | 刷新Token |
+| GET | /api/auth/me | 获取当前用户信息 |
+| GET | /api/auth/users | 用户列表（需管理权限） |
+| GET | /api/auth/users/:user_id | 用户详情 |
+| PUT | /api/auth/users/:user_id | 更新用户 |
+| DELETE | /api/auth/users/:user_id | 删除用户 |
+| POST | /api/auth/users/:user_id/reset-password | 重置密码 |
+| POST | /api/auth/users/:user_id/unlock | 解锁用户 |
+| GET | /api/auth/users/:user_id/lock-status | 锁定状态 |
+
+#### 客户管理 (/api/customers)
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | /api/customers | 客户列表 |
+| GET | /api/customers/:customer_id | 客户详情 |
+| POST | /api/customers | 创建客户 |
+| PUT | /api/customers/:customer_id | 更新客户 |
+| DELETE | /api/customers/:customer_id | 删除客户 |
+
+#### 合同类型管理 (/api/contract-types)
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | /api/contract-types | 类型列表 |
+| POST | /api/contract-types | 创建类型 |
+| PUT | /api/contract-types/:type_id | 更新类型 |
+| DELETE | /api/contract-types/:type_id | 删除类型 |
+
+#### 合同管理 (/api/contracts)
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | /api/contracts | 合同列表 |
+| GET | /api/contracts/:contract_id | 合同详情 |
+| POST | /api/contracts | 创建合同 |
+| PUT | /api/contracts/:contract_id | 更新合同 |
+| PUT | /api/contracts/:contract_id/status | 直接更新状态 |
+| POST | /api/contracts/:contract_id/status-change | 申请状态变更 |
+| GET | /api/contracts/:contract_id/status-change | 状态变更记录 |
+| POST | /api/contracts/:contract_id/archive | 归档合同 |
+| DELETE | /api/contracts/:contract_id | 删除合同 |
+| GET | /api/contracts/:contract_id/lifecycle | 生命周期记录 |
+
+#### 合同执行 (/api/executions)
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | /api/contracts/:contract_id/executions | 执行记录列表 |
+| POST | /api/contracts/:contract_id/executions | 创建执行记录 |
+| DELETE | /api/executions/:execution_id | 删除执行记录 |
+
+#### 合同文档 (/api/documents)
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | /api/contracts/:contract_id/documents | 文档列表 |
+| POST | /api/contracts/:contract_id/documents | 上传文档 |
+| GET | /api/documents/:document_id/preview | 预览文档 |
+| DELETE | /api/documents/:document_id | 删除文档 |
+
+#### 审批管理 (/api/approvals)
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | /api/contracts/:contract_id/approvals | 审批记录 |
+| POST | /api/contracts/:contract_id/approvals | 创建审批 |
+| PUT | /api/approvals/:approval_id | 更新审批 |
+| POST | /api/approvals/:approval_id/rollback | 回滚审批 |
+| GET | /api/approvals/:approval_id/status | 审批状态 |
+| POST | /api/approvals/process-expired | 处理过期审批 |
+| GET | /api/pending-approvals | 待审批列表 |
+
+#### 工作流 (/api/workflow)
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | /api/workflow/create | 创建工作流 |
+| GET | /api/workflow/pending | 我的待审批 |
+| GET | /api/workflow/:contract_id/status | 工作流状态 |
+| GET | /api/workflow/:contract_id | 工作流详情 |
+| POST | /api/workflow/:contract_id/remind | 催办 |
+| POST | /api/workflow/approve | 审批通过 |
+| POST | /api/workflow/reject | 审批拒绝 |
+
+#### 状态变更审批
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | /api/pending-status-changes | 待审批状态变更 |
+| POST | /api/status-change-requests/:request_id/approve | 通过状态变更 |
+| POST | /api/status-change-requests/:request_id/reject | 拒绝状态变更 |
+
+#### 通知管理 (/api/notifications)
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | /api/notifications | 通知列表 |
+| PUT | /api/notifications/:id/read | 标记已读 |
+| DELETE | /api/notifications/:id | 删除通知 |
+| DELETE | /api/notifications/all | 清空通知 |
+| GET | /api/notifications/unread-count | 未读数量 |
+
+#### 提醒管理 (/api/reminders)
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | /api/contracts/:contract_id/reminders | 合同提醒 |
+| POST | /api/contracts/:contract_id/reminders | 创建提醒 |
+| POST | /api/reminders/:reminder_id/send | 发送提醒 |
+
+#### 统计与提醒
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | /api/expiring-contracts | 即将到期合同 |
+| GET | /api/statistics | 统计数据 |
+| GET | /api/notifications/count | 待办数量 |
+
+#### 审计日志 (/api/audit-logs)
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | /api/audit-logs | 审计日志 |
+| DELETE | /api/audit-logs/:id | 删除单条 |
+| POST | /api/audit-logs/batch-delete | 批量删除 |
+| GET | /api/audit-logs/export | 导出日志 |
+
+#### 加密服务 (/api/crypto)
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | /api/crypto/config-hsm | 配置HSM（管理员） |
+| POST | /api/crypto/config-sm4 | 配置SM4（管理员） |
+| POST | /api/crypto/config-aes | 配置AES（管理员） |
+| POST | /api/crypto/generate-key | 生成密钥（管理员） |
+| GET | /api/crypto/status | 加密服务状态 |
+| POST | /api/crypto/encrypt | 加密数据 |
+| POST | /api/crypto/decrypt | 解密数据 |
 
 ## 环境变量
 
