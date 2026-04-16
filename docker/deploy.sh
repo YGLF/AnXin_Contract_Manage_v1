@@ -90,15 +90,15 @@ EOF
     # 安装Docker（指定稳定版本）
     yum install -y docker-ce-24.0.7 docker-ce-cli-24.0.7 containerd.io docker-buildx-plugin docker-compose-plugin
 
-    # 配置Docker镜像加速器
+    # 配置Docker镜像加速器（使用阿里云）
     log_info "配置Docker镜像加速器..."
     mkdir -p /etc/docker
     cat > /etc/docker/daemon.json <<'EOF'
 {
     "registry-mirrors": [
-        "https://docker.1ms.run",
-        "https://docker.xuanyuan.me",
-        "https://hub-mirror.c.163.com"
+        "https://registry.docker-cn.com",
+        "https://mirror.ccs.tencentyun.com",
+        "https://docker.mirrors.ustc.edu.cn"
     ],
     "log-driver": "json-file",
     "log-opts": {
@@ -110,6 +110,7 @@ EOF
 EOF
     # 重启Docker使配置生效
     systemctl restart docker
+    log_info "Docker配置完成"
 
     # 启动Docker
     systemctl start docker
