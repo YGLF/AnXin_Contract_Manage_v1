@@ -1,84 +1,123 @@
 <template>
   <div class="contract-page">
-    <el-card>
-      <template #header>
-        <div class="card-header">
-          <span>合同管理</span>
-          <el-button type="primary" @click="handleAdd">
-            <el-icon><Plus /></el-icon> 新增合同
-          </el-button>
-        </div>
-      </template>
-      <el-form :inline="true" :model="searchForm">
-        <el-form-item label="合同标题">
-          <el-input v-model="searchForm.title" placeholder="请输入合同标题" clearable />
-        </el-form-item>
-        <el-form-item label="状态">
-          <el-select v-model="searchForm.status" placeholder="请选择状态" clearable>
-            <el-option label="草稿" value="draft" />
-            <el-option label="待审批" value="pending" />
-            <el-option label="已批准" value="approved" />
-            <el-option label="进行中" value="active" />
-            <el-option label="已完成" value="completed" />
-          </el-select>
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" @click="handleSearch">查询</el-button>
-          <el-button @click="handleReset">重置</el-button>
-        </el-form-item>
-      </el-form>
+    <!-- 搜索区域 -->
+    <div class="search-bar">
+      <el-input v-model="searchForm.title" placeholder="合同标题" clearable style="width: 160px" size="default" />
+      <el-select v-model="searchForm.status" placeholder="状态" clearable style="width: 120px" size="default">
+        <el-option label="草稿" value="draft" />
+        <el-option label="待审批" value="pending" />
+        <el-option label="已批准" value="approved" />
+        <el-option label="进行中" value="active" />
+        <el-option label="已完成" value="completed" />
+      </el-select>
+      <el-button type="primary" size="default" @click="handleSearch">查询</el-button>
+      <el-button size="default" @click="handleReset">重置</el-button>
+      <div class="search-right">
+        <el-button type="primary" size="default" @click="handleAdd">
+          <el-icon><Plus /></el-icon> 新增合同
+        </el-button>
+      </div>
+    </div>
 
-      <el-table :data="tableData" style="width: 100%" v-loading="loading">
-        <el-table-column prop="contract_no" label="合同编号" width="150" />
-        <el-table-column prop="title" label="合同标题" />
-        <el-table-column prop="amount" label="金额" width="120">
+    <el-card class="table-card">
+      <el-table :data="tableData" style="width: 100%" v-loading="loading" :cell-style="{ padding: '8px 0' }" :row-class-name="getRowClassName">
+        <el-table-column prop="contract_no" label="合同编号" min-width="110" />
+        <el-table-column prop="title" label="合同标题" min-width="150" show-overflow-tooltip>
           <template #default="{ row }">
-            ¥{{ row.amount?.toFixed(2) }}
-          </template>
-        </el-table-column>
-        <el-table-column prop="status" label="状态" width="100">
-          <template #default="{ row }">
-            <el-tag :type="getStatusType(row.status)">{{ getStatusText(row.status) }}</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="sign_date" label="签约日期" width="120">
-          <template #default="{ row }">
-            {{ formatDate(row.sign_date) }}
-          </template>
-        </el-table-column>
-        <el-table-column prop="end_date" label="到期日期" width="120">
-          <template #default="{ row }">
-            {{ formatDate(row.end_date) }}
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="220" fixed="right">
-          <template #default="{ row }">
-            <div class="action-buttons">
-              <el-button type="primary" link @click="handleView(row)">
-                <el-icon><View /></el-icon> 详情
-              </el-button>
-              <el-button type="warning" link @click="handleEdit(row)">
-                <el-icon><Edit /></el-icon> 编辑
-              </el-button>
-              <el-button type="danger" link @click="handleDelete(row)">
-                <el-icon><Delete /></el-icon> 删除
-              </el-button>
+            <div class="title-cell">
+              <span>{{ row.title }}</span>
+              <el-tag v-if="row.reminders && row.reminders.length > 0" size="small" type="warning" class="reminder-tag">已提醒</el-tag>
             </div>
           </template>
         </el-table-column>
-      </el-table>
+        <el-table-column prop="customer" label="客户" min-width="120" show-overflow-tooltip>
+          <template #default="{ row }">
+            {{ row.customer?.name || '-' }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="creator" label="销售人员" min-width="90">
+          <template #default="{ row }">
+            <span v-if="row.creator">{{ row.creator.full_name || row.creator.username }}</span>
+            <span v-else>-</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="amount" label="金额" min-width="100">
+          <template #default="{ row }">
+            ¥{{ row.amount?.toLocaleString() }}
+          </template>
+        </el-table-column>
+<el-table-column prop="status" label="状态" min-width="80">
+    <template #default="{ row }">
+      <el-tag :type="getStatusType(row.status)" size="small">{{ getStatusText(row.status) }}</el-tag>
+    </template>
+  </el-table-column>
+  <el-table-column prop="workflow" label="审批进度" min-width="140">
+    <template #default="{ row }">
+      <div v-if="row.workflow_status && row.workflow_status.has_workflow" class="workflow-cell">
+        <el-progress
+          :percentage="Math.round((row.workflow_status.current_level / row.workflow_status.max_level) * 100)"
+          :status="getWorkflowProgressStatus(row.workflow_status.status)"
+          :stroke-width="4"
+          style="width: 80px"
+        />
+        <span class="workflow-text">第{{ row.workflow_status.current_level }}/{{ row.workflow_status.max_level }}级</span>
+        <el-button
+          v-if="row.workflow_status.status === 'pending'"
+          type="warning"
+          link
+          size="small"
+          @click="handleSendReminder(row)"
+        >
+          <el-icon><Bell /></el-icon>
+        </el-button>
+      </div>
+      <span v-else class="text-gray">-</span>
+    </template>
+  </el-table-column>
+  <el-table-column prop="sign_date" label="签约日期" min-width="100">
+    <template #default="{ row }">
+      {{ formatDate(row.sign_date) }}
+    </template>
+  </el-table-column>
+  <el-table-column prop="end_date" label="到期日期" min-width="100">
+    <template #default="{ row }">
+      {{ formatDate(row.end_date) }}
+    </template>
+  </el-table-column>
+<el-table-column label="操作" width="120" fixed="right">
+  <template #default="{ row }">
+    <div class="action-buttons">
+      <el-tooltip content="查看详情" placement="top">
+        <el-button type="primary" link @click="handleView(row)">
+          <el-icon><View /></el-icon>
+        </el-button>
+      </el-tooltip>
+      <el-tooltip content="编辑" placement="top">
+        <el-button type="warning" link @click="handleEdit(row)">
+          <el-icon><Edit /></el-icon>
+        </el-button>
+      </el-tooltip>
+      <el-tooltip content="删除" placement="top">
+        <el-button type="danger" link @click="handleDelete(row)">
+          <el-icon><Delete /></el-icon>
+        </el-button>
+      </el-tooltip>
+    </div>
+  </template>
+</el-table-column>
+</el-table>
 
-      <el-pagination
-        v-model:current-page="pagination.page"
-        v-model:page-size="pagination.size"
-        :page-sizes="[10, 20, 50, 100]"
-        :total="pagination.total"
-        layout="total, sizes, prev, pager, next, jumper"
-        @size-change="loadData"
-        @current-change="loadData"
-        style="margin-top: 20px; justify-content: flex-end"
-      />
-    </el-card>
+<el-pagination
+  v-model:current-page="pagination.page"
+  v-model:page-size="pagination.size"
+  :page-sizes="[10, 20, 50, 100]"
+  :total="pagination.total"
+  layout="total, sizes, prev, pager, next, jumper"
+  @size-change="loadData"
+  @current-change="loadData"
+  style="margin-top: 12px; justify-content: flex-end"
+/>
+</el-card>
 
     <el-dialog
       v-model="dialogVisible"
@@ -171,10 +210,11 @@
 import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, View, Edit, Delete } from '@element-plus/icons-vue'
+import { Plus, View, Edit, Delete, Bell } from '@element-plus/icons-vue'
 import { getContractList, getContractDetail, createContract, updateContract, deleteContract } from '@/api/contract'
 import { getCustomerList } from '@/api/customer'
 import { getContractTypeList } from '@/api/customer'
+import { getWorkflowStatus, sendApprovalReminder } from '@/api/approval'
 
 const route = useRoute()
 const router = useRouter()
@@ -249,28 +289,121 @@ const getStatusText = (status) => {
   return textMap[status] || status
 }
 
+const getWorkflowProgressStatus = (status) => {
+  if (status === 'approved' || status === 'completed') return 'success'
+  if (status === 'rejected') return 'exception'
+  return 'warning'
+}
+
+const getLevelName = (level) => {
+  const nameMap = {
+    1: '销售总监',
+    2: '技术总监',
+    3: '财务总监'
+  }
+  return nameMap[level] || '未知'
+}
+
+const getRoleName = (role) => {
+  const nameMap = {
+    'sales_director': '销售',
+    'tech_director': '技术',
+    'finance_director': '财务'
+  }
+  return nameMap[role] || role
+}
+
+const getStepClass = (node) => {
+  if (node.status === 'approved') return 'step-approved'
+  if (node.status === 'rejected') return 'step-rejected'
+  if (node.status === 'pending') return 'step-pending'
+  return ''
+}
+
+const getRowClassName = ({ row }) => {
+  if (row.reminders && row.reminders.length > 0) {
+    return 'reminder-row'
+  }
+  return ''
+}
+
+const loadWorkflowStatus = async (contractId) => {
+  try {
+    const status = await getWorkflowStatus(contractId)
+    return status
+  } catch (error) {
+    return null
+  }
+}
+
 const loadData = async () => {
   loading.value = true
   try {
     const params = {
       skip: (pagination.page - 1) * pagination.size,
-      limit: pagination.size,
-      ...searchForm
+      limit: pagination.size
     }
-    const data = await getContractList(params)
+    if (searchForm.title) {
+      params.title = searchForm.title
+    }
+    if (searchForm.status) {
+      params.status = searchForm.status
+    }
+    const res = await getContractList(params)
+    
+    const data = res.data || res
+    const total = res.total || data.length
+    
+    // 加载每个合同的工作流状态
+    for (const contract of data) {
+      if (contract.status === 'pending') {
+        contract.workflow_status = await loadWorkflowStatus(contract.id)
+      }
+    }
+    
     tableData.value = data
-    pagination.total = data.length
+    pagination.total = total
   } finally {
     loading.value = false
   }
 }
 
+const handleSendReminder = async (row) => {
+  try {
+    await ElMessageBox.confirm(
+      `确定要催办合同 "${row.title}" 的审批吗？\n提醒将发送给当前待审批的负责人。`,
+      '催办审批',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    )
+    await sendApprovalReminder(row.id)
+    ElMessage.success('催办提醒已发送')
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error(error.response?.data?.error || '发送提醒失败')
+    }
+  }
+}
+
 const loadCustomers = async () => {
-  customers.value = await getCustomerList({ limit: 1000 })
+  try {
+    const res = await getCustomerList({ limit: 1000 })
+    customers.value = res.data || res || []
+  } catch (e) {
+    customers.value = []
+  }
 }
 
 const loadContractTypes = async () => {
-  contractTypes.value = await getContractTypeList({ limit: 1000 })
+  try {
+    const res = await getContractTypeList({ limit: 1000 })
+    contractTypes.value = res.data || res || []
+  } catch (e) {
+    contractTypes.value = []
+  }
 }
 
 const handleAdd = () => {
@@ -365,7 +498,37 @@ onMounted(async () => {
 
 <style scoped>
 .contract-page {
-  padding: 20px;
+  padding: 16px;
+}
+
+.search-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 12px 16px;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+.search-right {
+  margin-left: auto;
+}
+
+.table-card {
+  border-radius: 8px;
+}
+
+.workflow-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.workflow-text {
+  font-size: 12px;
+  color: #606266;
 }
 
 .card-header {
@@ -378,6 +541,7 @@ onMounted(async () => {
 .action-buttons {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 4px;
 }
 
@@ -391,5 +555,84 @@ onMounted(async () => {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
+}
+
+.workflow-info {
+  font-size: 12px;
+  color: #909399;
+  margin-top: 4px;
+}
+
+.workflow-level-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.level-badge {
+  background: #409eff;
+  color: white;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.level-text {
+  font-size: 13px;
+  color: #303133;
+  font-weight: 500;
+}
+
+.workflow-steps {
+  display: flex;
+  gap: 4px;
+  margin-top: 6px;
+  font-size: 11px;
+}
+
+.step-item {
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: #e4e7ed;
+  color: #606266;
+}
+
+.step-approved {
+  background: #67c23a;
+  color: white;
+}
+
+.step-rejected {
+  background: #f56c6c;
+  color: white;
+}
+
+.step-pending {
+  background: #e6a23c;
+  color: white;
+}
+
+.text-gray {
+  color: #909399;
+}
+
+.title-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.reminder-tag {
+  flex-shrink: 0;
+}
+
+:deep(.reminder-row) {
+  background-color: #fdf6ec !important;
+}
+
+:deep(.reminder-row:hover) {
+  background-color: #faecd8 !important;
 }
 </style>

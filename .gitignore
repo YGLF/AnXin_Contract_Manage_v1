@@ -5,6 +5,12 @@
 *.so
 *.dylib
 main
+server
+contract-manage
+contract-server.exe
+contract-manage.exe
+*.db
+*.sqlite
 
 # Test binary, built with `go test -c`
 *.test
@@ -17,6 +23,16 @@ go.work
 
 # Environment variables
 .env
+.env.production
+.env.local
+
+# Logs
+*.log
+server.log
+backend.log
+
+# Backups
+backups/
 
 # Uploads directory
 uploads/

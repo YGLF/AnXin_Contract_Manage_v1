@@ -9,8 +9,32 @@ export const getApprovalRecords = (contractId) => {
 
 export const getPendingApprovals = () => {
   return request({
-    url: '/pending-approvals',
+    url: '/workflow/pending',
     method: 'get'
+  })
+}
+
+export const createWorkflow = (data) => {
+  return request({
+    url: '/workflow/create',
+    method: 'post',
+    data
+  })
+}
+
+export const approveWorkflow = (data) => {
+  return request({
+    url: '/workflow/approve',
+    method: 'post',
+    data
+  })
+}
+
+export const rejectWorkflow = (data) => {
+  return request({
+    url: '/workflow/reject',
+    method: 'post',
+    data
   })
 }
 
@@ -71,5 +95,54 @@ export const getNotificationCounts = () => {
   return request({
     url: '/notifications/count',
     method: 'get'
+  })
+}
+
+export const getWorkflowStatus = (contractId) => {
+  return request({
+    url: `/workflow/${contractId}/status`,
+    method: 'get'
+  })
+}
+
+export const sendApprovalReminder = (contractId) => {
+  return request({
+    url: `/workflow/${contractId}/remind`,
+    method: 'post'
+  })
+}
+
+export const getMyNotifications = () => {
+  return request({
+    url: '/notifications',
+    method: 'get'
+  })
+}
+
+export const markNotificationRead = (id) => {
+  return request({
+    url: `/notifications/${id}/read`,
+    method: 'put'
+  })
+}
+
+export const getUnreadNotificationCount = () => {
+  return request({
+    url: '/notifications/unread-count',
+    method: 'get'
+  })
+}
+
+export const deleteNotification = (id) => {
+  return request({
+    url: `/notifications/${id}`,
+    method: 'delete'
+  })
+}
+
+export const deleteAllNotifications = () => {
+  return request({
+    url: '/notifications/all',
+    method: 'delete'
   })
 }

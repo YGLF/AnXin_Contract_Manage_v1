@@ -117,8 +117,8 @@
               </el-button>
             </div>
           </template>
-          <el-table :data="expiringContracts" style="width: 100%">
-            <el-table-column prop="contract_no" label="合同编号" width="160">
+<el-table :data="expiringContracts" style="width: 100%" :cell-style="{ padding: '8px 0' }">
+  <el-table-column prop="contract_no" label="合同编号" width="160">
               <template #default="{ row }">
                 <el-tag size="small" effect="plain">{{ row.contract_no }}</el-tag>
               </template>
@@ -137,11 +137,15 @@
                 <span class="amount">¥{{ formatAmount(row.amount) }}</span>
               </template>
             </el-table-column>
-            <el-table-column label="操作" width="100" fixed="right">
-              <template #default="{ row }">
-                <el-button type="primary" link @click="viewContract(row)">查看</el-button>
-              </template>
-            </el-table-column>
+<el-table-column label="操作" width="60" fixed="right">
+  <template #default="{ row }">
+    <el-tooltip content="查看详情" placement="top">
+      <el-button type="primary" link @click="viewContract(row)">
+        <el-icon><View /></el-icon>
+      </el-button>
+    </el-tooltip>
+  </template>
+</el-table-column>
           </el-table>
         </el-card>
       </el-col>
@@ -240,7 +244,6 @@ const isExpiringSoon = (date) => {
 const loadStatistics = async () => {
   try {
     const data = await getStatistics()
-    console.log('API返回数据:', data)
     if (data) {
       statistics.value = {
         total_contracts: data.total_contracts ?? 0,
@@ -254,77 +257,88 @@ const loadStatistics = async () => {
         expiring_soon: data.expiring_soon ?? 0,
         total_amount: data.total_amount ?? 0
       }
-      console.log('统计数据显示:', statistics.value)
-      nextTick(() => {
-        initChart()
-      })
     }
+    nextTick(() => {
+      initChart()
+    })
   } catch (error) {
     console.error('加载统计数据失败:', error)
+    nextTick(() => {
+      initChart()
+    })
   }
 }
 
 const loadExpiringContracts = async () => {
   try {
     const data = await getExpiringContracts(30)
-    expiringContracts.value = data.contracts || []
+    if (data && data.contracts) {
+      expiringContracts.value = data.contracts
+    } else if (Array.isArray(data)) {
+      expiringContracts.value = data
+    }
   } catch (error) {
     console.error('加载到期合同失败:', error)
   }
 }
 
 const initChart = () => {
-  if (!chartRef.value) return
-  
-  if (chartInstance.value) {
-    chartInstance.value.dispose()
-  }
-  
-  chartInstance.value = echarts.init(chartRef.value)
-  
-  let option
-  if (chartType.value === 'pie') {
-    option = getPieOption()
-  } else {
-    option = getBarOption()
-  }
-  
-  chartInstance.value.setOption(option)
-  
-  chartInstance.value.off('click')
-  chartInstance.value.on('click', (params) => {
-    if (chartType.value === 'pie') {
-      const statusMap = {
-        '进行中': 'active',
-        '待审批': 'pending',
-        '已完成': 'completed',
-        '草稿': 'draft',
-        '已终止': 'terminated'
-      }
-      const status = statusMap[params.name]
-      if (status) {
-        router.push({ path: '/contracts', query: { status } })
-      }
-    } else {
-      const barStatusMap = {
-        '进行中': 'active',
-        '待审批': 'pending',
-        '已完成': 'completed',
-        '草稿': 'draft',
-        '已终止': 'terminated'
-      }
-      const status = barStatusMap[params.name]
-      if (status) {
-        router.push({ path: '/contracts', query: { status } })
-      }
-    }
-  })
-  
-  window.addEventListener('resize', () => {
+  try {
+    if (!chartRef.value) return
+    
     if (chartInstance.value) {
-      chartInstance.value.resize()
+      chartInstance.value.dispose()
+      chartInstance.value = null
     }
-  })
+    
+    chartInstance.value = echarts.init(chartRef.value)
+    
+    let option
+    if (chartType.value === 'pie') {
+      option = getPieOption()
+    } else {
+      option = getBarOption()
+    }
+    
+    chartInstance.value.setOption(option)
+    
+    chartInstance.value.off('click')
+    chartInstance.value.on('click', (params) => {
+      if (chartType.value === 'pie') {
+        const statusMap = {
+          '进行中': 'active',
+          '待审批': 'pending',
+          '已完成': 'completed',
+          '草稿': 'draft',
+          '已终止': 'terminated'
+        }
+        const status = statusMap[params.name]
+        if (status) {
+          router.push({ path: '/contracts', query: { status } })
+        }
+      } else {
+        const barStatusMap = {
+          '进行中': 'active',
+          '待审批': 'pending',
+          '已完成': 'completed',
+          '草稿': 'draft',
+          '已终止': 'terminated'
+        }
+        const status = barStatusMap[params.name]
+        if (status) {
+          router.push({ path: '/contracts', query: { status } })
+        }
+      }
+    })
+    
+    window.addEventListener('resize', () => {
+      if (chartInstance.value) {
+        chartInstance.value.resize()
+      }
+    })
+  } catch (error) {
+    console.error('Chart initialization error:', error)
+  }
 }
 
 watch(chartType, () => {

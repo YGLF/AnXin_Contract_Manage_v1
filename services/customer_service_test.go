@@ -179,7 +179,7 @@ func TestCustomerService_GetCustomers(t *testing.T) {
 	service.CreateCustomer(CustomerCreateInput{Name: "供应商A", Type: "supplier", Code: "SA001"})
 
 	t.Run("get all customers", func(t *testing.T) {
-		customers, err := service.GetCustomers(0, 10, "")
+		customers, err := service.GetCustomers(0, 10, "", "")
 		if err != nil {
 			t.Errorf("GetCustomers() error = %v", err)
 			return
@@ -190,7 +190,7 @@ func TestCustomerService_GetCustomers(t *testing.T) {
 	})
 
 	t.Run("filter by customer type", func(t *testing.T) {
-		customers, err := service.GetCustomers(0, 10, "customer")
+		customers, err := service.GetCustomers(0, 10, "customer", "")
 		if err != nil {
 			t.Errorf("GetCustomers() error = %v", err)
 			return
@@ -201,7 +201,7 @@ func TestCustomerService_GetCustomers(t *testing.T) {
 	})
 
 	t.Run("filter by supplier type", func(t *testing.T) {
-		customers, err := service.GetCustomers(0, 10, "supplier")
+		customers, err := service.GetCustomers(0, 10, "supplier", "")
 		if err != nil {
 			t.Errorf("GetCustomers() error = %v", err)
 			return
@@ -212,7 +212,7 @@ func TestCustomerService_GetCustomers(t *testing.T) {
 	})
 
 	t.Run("pagination", func(t *testing.T) {
-		customers, err := service.GetCustomers(0, 2, "")
+		customers, err := service.GetCustomers(0, 2, "", "")
 		if err != nil {
 			t.Errorf("GetCustomers() error = %v", err)
 			return

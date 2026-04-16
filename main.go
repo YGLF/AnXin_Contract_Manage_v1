@@ -5,6 +5,7 @@ import (
 	"contract-manage/handlers"
 	"contract-manage/middleware"
 	"contract-manage/models"
+	"contract-manage/routes"
 	"fmt"
 	"html/template"
 	"time"
@@ -547,6 +548,84 @@ var apiDocs = `
 </body>
 </html>`
 
+// archiveExpiredContracts 归档已过期合同并发送强提醒
+// 每天检查结束日期已过的合同，将其状态改为已归档，并发送通知提醒
+func archiveExpiredContracts() {
+	fmt.Println("[定时任务] 检查过期合同...")
+	now := time.Now()
+
+	// 查询所有已过期且未归档的合同
+	var expiredContracts []models.Contract
+	if err := models.DB.Where("end_date < ? AND status IN ?", now, []string{"active", "in_progress"}).Find(&expiredContracts).Error; err != nil {
+		fmt.Printf("[定时任务] 查询过期合同失败: %v\n", err)
+		return
+	}
+
+	if len(expiredContracts) == 0 {
+		fmt.Println("[定时任务] 没有需要归档的过期合同")
+		return
+	}
+
+	for _, contract := range expiredContracts {
+		// 归档合同
+		models.DB.Model(&contract).Update("status", models.StatusArchived)
+
+		// 记录生命周期事件
+		models.DB.Create(&models.ContractLifecycleEvent{
+			ContractID:  contract.ID,
+			EventType:   "auto_archived",
+			FromStatus:  string(contract.Status),
+			ToStatus:    string(models.StatusArchived),
+			Description: fmt.Sprintf("合同已过期，系统自动归档（结束日期：%s）", contract.EndDate.Format("2006-01-02")),
+		})
+
+		// 发送强提醒通知给销售人员（合同创建人）
+		if contract.CreatorID > 0 {
+			notification := models.Notification{
+				UserID:     contract.CreatorID,
+				ContractID: contract.ID,
+				Type:       "expired_contract",
+				Title:      "合同已过期提醒",
+				Content:    fmt.Sprintf("您创建的合同「%s」（编号：%s）已过期并自动归档。请及时处理。\n合同金额：¥%.2f\n结束日期：%s", contract.Title, contract.ContractNo, contract.Amount, contract.EndDate.Format("2006-01-02")),
+				IsRead:     false,
+			}
+			models.DB.Create(&notification)
+		}
+
+		// 同时通知销售总监
+		var salesDirector models.User
+		if err := models.DB.Where("role = ?", "sales_director").First(&salesDirector).Error; err == nil {
+			notification := models.Notification{
+				UserID:     salesDirector.ID,
+				ContractID: contract.ID,
+				Type:       "expired_contract",
+				Title:      "合同过期通知",
+				Content:    fmt.Sprintf("合同「%s」（编号：%s）已过期并自动归档。\n合同金额：¥%.2f\n结束日期：%s\n销售人员ID: %d", contract.Title, contract.ContractNo, contract.Amount, contract.EndDate.Format("2006-01-02"), contract.CreatorID),
+				IsRead:     false,
+			}
+			models.DB.Create(&notification)
+		}
+
+		// 通知管理员
+		var admin models.User
+		if err := models.DB.Where("role = ?", "admin").First(&admin).Error; err == nil {
+			notification := models.Notification{
+				UserID:     admin.ID,
+				ContractID: contract.ID,
+				Type:       "expired_contract",
+				Title:      "合同过期归档通知",
+				Content:    fmt.Sprintf("合同「%s」（编号：%s）已过期并自动归档。\n合同金额：¥%.2f\n结束日期：%s", contract.Title, contract.ContractNo, contract.Amount, contract.EndDate.Format("2006-01-02")),
+				IsRead:     false,
+			}
+			models.DB.Create(&notification)
+		}
+
+		fmt.Printf("[定时任务] 已归档合同: %s (ID: %d, 过期日期: %s)\n", contract.Title, contract.ID, contract.EndDate.Format("2006-01-02"))
+	}
+
+	fmt.Printf("[定时任务] 共归档 %d 个过期合同并发送强提醒通知\n", len(expiredContracts))
+}
+
 func main() {
 	if err := config.LoadConfig(); err != nil {
 		panic("Failed to load config: " + err.Error())
@@ -556,8 +635,51 @@ func main() {
 		panic("Failed to connect database: " + err.Error())
 	}
 
+	// 设置权限检查用的数据库实例
+	middleware.SetPermissionDB(models.DB)
+
 	if err := models.InitAdmin(); err != nil {
 		fmt.Println("Warning: Failed to create admin user: " + err.Error())
+	}
+
+	if err := models.InitRoles(); err != nil {
+		fmt.Println("Warning: Failed to initialize roles: " + err.Error())
+	}
+
+	// 启动合同归档定时任务（每天凌晨检查并归档过期合同）
+	go func() {
+		ticker := time.NewTicker(24 * time.Hour)
+		defer ticker.Stop()
+		for range ticker.C {
+			archiveExpiredContracts()
+		}
+	}()
+
+	// 立即执行一次归档检查
+	go func() {
+		time.Sleep(5 * time.Second)
+		archiveExpiredContracts()
+	}()
+
+	// 初始化加密服务
+	cryptoHandler := handlers.NewCryptoHandler()
+	if config.AppConfig.HSMEnabled && config.AppConfig.HSMEndpoint != "" {
+		cryptoHandler.SetHSMService(config.AppConfig.HSMEndpoint, config.AppConfig.HSMAppID)
+		fmt.Println("HSM密码机服务已配置")
+	}
+	if config.AppConfig.SM4Enabled && config.AppConfig.SM4Key != "" {
+		if err := cryptoHandler.SetSM4Service(config.AppConfig.SM4Key); err != nil {
+			fmt.Printf("SM4加密服务配置失败: %v\n", err)
+		} else {
+			fmt.Println("SM4加密服务已配置")
+		}
+	}
+	if config.AppConfig.AESEnabled && config.AppConfig.AESKey != "" {
+		if err := cryptoHandler.SetAESService(config.AppConfig.AESKey); err != nil {
+			fmt.Printf("AES加密服务配置失败: %v\n", err)
+		} else {
+			fmt.Println("AES加密服务已配置")
+		}
 	}
 
 	r := gin.Default()
@@ -595,92 +717,8 @@ func main() {
 		c.HTML(200, "", gin.H{})
 	})
 
-	authHandler := handlers.NewAuthHandler()
-	customerHandler := handlers.NewCustomerHandler()
-	contractHandler := handlers.NewContractHandler()
-	approvalHandler := handlers.NewApprovalHandler()
-	workflowHandler := handlers.NewWorkflowHandler(models.DB)
-	auditHandler := handlers.NewAuditHandler()
-
-	auth := r.Group("/api/auth")
-	auth.Use(middleware.RateLimitMiddleware())
-	{
-		auth.POST("/register", authHandler.Register)
-		auth.POST("/login", authHandler.Login)
-		auth.GET("/users", middleware.AuthMiddleware(), authHandler.GetUsers)
-		auth.GET("/users/:user_id", middleware.AuthMiddleware(), authHandler.GetUserByID)
-		auth.PUT("/users/:user_id", middleware.AuthMiddleware(), authHandler.UpdateUser)
-		auth.DELETE("/users/:user_id", middleware.AuthMiddleware(), authHandler.DeleteUser)
-	}
-
-	api := r.Group("/api")
-	api.Use(middleware.AuthMiddleware())
-	api.Use(handlers.AuditLogMiddleware(handlers.GetAuditService()))
-	{
-		api.GET("/customers", customerHandler.GetCustomers)
-		api.GET("/customers/:customer_id", customerHandler.GetCustomerByID)
-		api.POST("/customers", customerHandler.CreateCustomer)
-		api.PUT("/customers/:customer_id", customerHandler.UpdateCustomer)
-		api.DELETE("/customers/:customer_id", customerHandler.DeleteCustomer)
-
-		api.GET("/contract-types", customerHandler.GetContractTypes)
-		api.POST("/contract-types", customerHandler.CreateContractType)
-		api.PUT("/contract-types/:type_id", customerHandler.UpdateContractType)
-		api.DELETE("/contract-types/:type_id", customerHandler.DeleteContractType)
-
-		api.GET("/contracts", contractHandler.GetContracts)
-		api.POST("/contracts", contractHandler.CreateContract)
-		api.GET("/contracts/:contract_id", contractHandler.GetContractByID)
-		api.PUT("/contracts/:contract_id", contractHandler.UpdateContract)
-		api.PUT("/contracts/:contract_id/status", contractHandler.UpdateContractStatus)
-		api.POST("/contracts/:contract_id/status-change", contractHandler.CreateStatusChangeRequest)
-		api.GET("/contracts/:contract_id/status-change", contractHandler.GetStatusChangeRequests)
-		api.POST("/contracts/:contract_id/archive", contractHandler.ArchiveContract)
-		api.DELETE("/contracts/:contract_id", contractHandler.DeleteContract)
-		api.GET("/contracts/:contract_id/lifecycle", contractHandler.GetContractLifecycle)
-
-		api.GET("/contracts/:contract_id/executions", contractHandler.GetContractExecutions)
-		api.POST("/contracts/:contract_id/executions", contractHandler.CreateContractExecution)
-		api.DELETE("/executions/:execution_id", contractHandler.DeleteExecution)
-
-		api.GET("/contracts/:contract_id/documents", contractHandler.GetContractDocuments)
-		api.POST("/contracts/:contract_id/documents", contractHandler.CreateContractDocument)
-		api.GET("/documents/:document_id/preview", contractHandler.PreviewDocument)
-		api.DELETE("/documents/:document_id", contractHandler.DeleteDocument)
-
-		api.GET("/contracts/:contract_id/approvals", approvalHandler.GetContractApprovals)
-		api.POST("/contracts/:contract_id/approvals", approvalHandler.CreateApproval)
-		api.PUT("/approvals/:approval_id", approvalHandler.UpdateApproval)
-		api.GET("/pending-approvals", approvalHandler.GetPendingApprovals)
-
-		// 工作流审批路由
-		api.POST("/workflow/create", workflowHandler.CreateWorkflow)
-		api.GET("/workflow/:contract_id", workflowHandler.GetWorkflow)
-		api.GET("/workflow/:contract_id/pending", workflowHandler.GetMyPendingApproval)
-		api.POST("/workflow/approve", workflowHandler.Approve)
-		api.POST("/workflow/reject", workflowHandler.Reject)
-
-		api.GET("/pending-status-changes", contractHandler.GetPendingStatusChangeApprovals)
-		api.POST("/status-change-requests/:request_id/approve", contractHandler.ApproveStatusChangeRequest)
-		api.POST("/status-change-requests/:request_id/reject", contractHandler.RejectStatusChangeRequest)
-
-		api.GET("/contracts/:contract_id/reminders", approvalHandler.GetContractReminders)
-		api.POST("/contracts/:contract_id/reminders", approvalHandler.CreateReminder)
-
-		api.POST("/reminders/:reminder_id/send", approvalHandler.SendReminder)
-
-		api.GET("/expiring-contracts", approvalHandler.GetExpiringContracts)
-		api.GET("/statistics", approvalHandler.GetStatistics)
-		api.GET("/notifications/count", approvalHandler.GetNotificationCounts)
-
-		api.GET("/audit-logs", auditHandler.GetAuditLogs)
-		api.DELETE("/audit-logs/:id", auditHandler.DeleteAuditLog)
-		api.POST("/audit-logs/batch-delete", auditHandler.DeleteAuditLogs)
-		api.GET("/audit-logs/export", auditHandler.ExportAuditLogs)
-	}
-
-	_ = approvalHandler
-	_ = contractHandler
+	// 设置路由
+	routes.SetupRoutes(r)
 
 	addr := ":8000"
 	fmt.Printf("API 调试页面: http://localhost%s\n", addr)

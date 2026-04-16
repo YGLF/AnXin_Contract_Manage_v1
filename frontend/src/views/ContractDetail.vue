@@ -66,46 +66,6 @@
           <el-empty v-if="lifecycleEvents.length === 0" description="暂无生命周期记录" />
         </el-tab-pane>
 
-        <el-tab-pane label="执行跟踪" name="executions">
-          <div class="tab-header">
-            <span>执行进度管理</span>
-            <el-button type="primary" size="small" @click="showExecutionDialog = true">
-              <el-icon><Plus /></el-icon> 添加执行记录
-            </el-button>
-          </div>
-          <el-table :data="executions" v-loading="executionsLoading">
-            <el-table-column prop="stage" label="阶段" />
-            <el-table-column prop="stage_date" label="阶段日期" width="120">
-              <template #default="{ row }">
-                {{ formatDate(row.stage_date) }}
-              </template>
-            </el-table-column>
-            <el-table-column prop="progress" label="进度" width="150">
-              <template #default="{ row }">
-                <el-progress :percentage="row.progress" :color="getProgressColor(row.progress)" />
-              </template>
-            </el-table-column>
-            <el-table-column prop="payment_amount" label="付款金额" width="120">
-              <template #default="{ row }">
-                ¥{{ row.payment_amount?.toLocaleString() }}
-              </template>
-            </el-table-column>
-            <el-table-column prop="payment_date" label="付款日期" width="120">
-              <template #default="{ row }">
-                {{ formatDate(row.payment_date) }}
-              </template>
-            </el-table-column>
-            <el-table-column prop="description" label="说明" />
-            <el-table-column label="操作" width="120" fixed="right">
-              <template #default="{ row }">
-                <el-button type="danger" link @click="handleDeleteExecution(row)">
-                  <el-icon><Delete /></el-icon> 删除
-                </el-button>
-              </template>
-            </el-table-column>
-          </el-table>
-        </el-tab-pane>
-
         <el-tab-pane label="文档管理" name="documents">
           <div class="tab-header">
             <span>合同文档</span>
@@ -123,35 +83,41 @@
                 <el-icon><Upload /></el-icon> 上传文档
               </el-button>
               <template #tip>
-                <div class="el-upload__tip" style="margin-top: 8px">支持 .doc, .docx, .pdf, 图片, 文本, Excel 格式</div>
+                <div class="el-upload__tip" style="margin-top: 8px">支持 .docx, .pdf格式</div>
               </template>
             </el-upload>
           </div>
-          <el-table :data="documents" v-loading="documentsLoading">
-            <el-table-column prop="name" label="文档名称" />
-            <el-table-column prop="file_type" label="类型" width="100" />
-            <el-table-column prop="file_size" label="大小" width="100">
+<el-table :data="documents" v-loading="documentsLoading" :cell-style="{ padding: '8px 0' }">
+  <el-table-column prop="name" label="文档名称" />
+  <el-table-column prop="file_type" label="类型" width="100" />
+  <el-table-column prop="file_size" label="大小" width="100">
               <template #default="{ row }">
                 {{ formatFileSize(row.file_size) }}
               </template>
             </el-table-column>
             <el-table-column prop="version" label="版本" width="80" />
             <el-table-column prop="created_at" label="上传时间" width="180" />
-            <el-table-column label="操作" width="220" fixed="right">
-              <template #default="{ row }">
-                <div class="action-buttons">
-                  <el-button type="primary" link @click="handlePreview(row)">
-                    <el-icon><View /></el-icon> 预览
-                  </el-button>
-                  <el-button type="success" link @click="handleDownload(row)">
-                    <el-icon><Download /></el-icon> 下载
-                  </el-button>
-                  <el-button type="danger" link @click="handleDeleteDocument(row)">
-                    <el-icon><Delete /></el-icon> 删除
-                  </el-button>
-                </div>
-              </template>
-            </el-table-column>
+<el-table-column label="操作" width="120" fixed="right">
+  <template #default="{ row }">
+    <div class="action-buttons">
+      <el-tooltip content="预览" placement="top">
+        <el-button type="primary" link @click="handlePreview(row)">
+          <el-icon><View /></el-icon>
+        </el-button>
+      </el-tooltip>
+      <el-tooltip content="下载" placement="top">
+        <el-button type="success" link @click="handleDownload(row)">
+          <el-icon><Download /></el-icon>
+        </el-button>
+      </el-tooltip>
+      <el-tooltip content="删除" placement="top">
+        <el-button type="danger" link @click="handleDeleteDocument(row)">
+          <el-icon><Delete /></el-icon>
+        </el-button>
+      </el-tooltip>
+    </div>
+  </template>
+</el-table-column>
           </el-table>
         </el-tab-pane>
 
@@ -162,50 +128,25 @@
               <el-icon><Plus /></el-icon> 提交审批
             </el-button>
           </div>
-          <el-table :data="approvals" v-loading="approvalsLoading">
-            <el-table-column prop="approver.full_name" label="审批人" width="120" />
-            <el-table-column prop="status" label="状态" width="100">
-              <template #default="{ row }">
-                <el-tag :type="getApprovalStatusType(row.status)">{{ getApprovalStatusText(row.status) }}</el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column prop="comment" label="审批意见" />
-            <el-table-column prop="approved_at" label="审批时间" width="180" />
-            <el-table-column prop="created_at" label="提交时间" width="180" />
-          </el-table>
+<el-table :data="approvals" v-loading="approvalsLoading" :cell-style="{ padding: '8px 0' }">
+  <el-table-column prop="approver.full_name" label="审批人" width="120" />
+  <el-table-column prop="status" label="审批状态" width="100">
+    <template #default="{ row }">
+      <el-tag :type="getApprovalStatusType(row.status)">{{ getApprovalStatusText(row.status) }}</el-tag>
+    </template>
+  </el-table-column>
+  <el-table-column label="合同状态" width="100">
+    <template #default>
+      <el-tag :type="getStatusType(contract.status)">{{ getStatusText(contract.status) }}</el-tag>
+    </template>
+  </el-table-column>
+  <el-table-column prop="comment" label="审批意见" />
+  <el-table-column prop="approved_at" label="审批时间" width="180" />
+  <el-table-column prop="created_at" label="提交时间" width="180" />
+</el-table>
         </el-tab-pane>
       </el-tabs>
     </el-card>
-
-    <el-dialog v-model="showExecutionDialog" title="添加执行记录" width="500px">
-      <el-form ref="executionFormRef" :model="executionForm" :rules="executionRules" label-width="100px">
-        <el-form-item label="阶段名称" prop="stage">
-          <el-input v-model="executionForm.stage" placeholder="请输入阶段名称" />
-        </el-form-item>
-        <el-form-item label="阶段日期" prop="stage_date">
-          <el-date-picker v-model="executionForm.stage_date" type="date" placeholder="选择日期" value-format="YYYY-MM-DD" style="width: 100%" />
-        </el-form-item>
-        <el-form-item label="进度%" prop="progress">
-          <el-slider v-model="executionForm.progress" :marks="{0: '0%', 50: '50%', 100: '100%'}" />
-          <div style="font-size: 12px; color: #999; margin-top: 4px">根据付款金额自动计算（合同总金额：¥{{ contractAmount.toLocaleString() }}）</div>
-        </el-form-item>
-        <el-form-item label="付款金额">
-          <el-input-number v-model="executionForm.payment_amount" :precision="2" :min="0" style="width: 100%" />
-        </el-form-item>
-        <el-form-item label="付款日期">
-          <el-date-picker v-model="executionForm.payment_date" type="date" placeholder="选择日期" value-format="YYYY-MM-DD" style="width: 100%" />
-        </el-form-item>
-        <el-form-item label="说明">
-          <el-input v-model="executionForm.description" type="textarea" :rows="3" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <div class="dialog-footer">
-          <el-button @click="showExecutionDialog = false">取消</el-button>
-          <el-button type="primary" @click="handleSubmitExecution">确定</el-button>
-        </div>
-      </template>
-    </el-dialog>
 
     <el-dialog v-model="showApprovalDialog" title="提交审批" width="500px">
       <el-form ref="approvalFormRef" :model="approvalForm" :rules="approvalRules" label-width="100px">
@@ -228,7 +169,7 @@
         </el-form-item>
         <el-form-item label="变更为">
           <el-select v-model="newStatus" placeholder="请选择新状态" style="width: 100%">
-            <el-option v-for="opt in statusOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+            <el-option v-for="opt in getAvailableStatusOptions()" :key="opt.value" :label="opt.label" :value="opt.value" />
           </el-select>
         </el-form-item>
         <el-form-item label="说明">
@@ -310,7 +251,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/store/user'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowLeft, Plus, Upload, Loading, Warning, View, Edit, Delete, Download, RefreshRight, FolderOpened } from '@element-plus/icons-vue'
-import { getContractDetail, getContractExecutions, createContractExecution, deleteExecution, getContractDocuments, uploadDocument, deleteDocument, getContractLifecycle, updateContractStatus, archiveContract, requestStatusChange } from '@/api/contract'
+import { getContractDetail, getContractDocuments, uploadDocument, deleteDocument, getContractLifecycle, updateContractStatus, archiveContract, requestStatusChange } from '@/api/contract'
 import { getApprovalRecords, createApproval } from '@/api/approval'
 import axios from 'axios'
 
@@ -320,21 +261,17 @@ const userStore = useUserStore()
 
 const activeTab = ref('info')
 const contract = ref({})
-const executions = ref([])
 const documents = ref([])
 const approvals = ref([])
-const executionsLoading = ref(false)
 const documentsLoading = ref(false)
 const approvalsLoading = ref(false)
 const lifecycleEvents = ref([])
 
-const showExecutionDialog = ref(false)
 const showApprovalDialog = ref(false)
 const showStatusDialog = ref(false)
 const showPreviewDialog = ref(false)
 const newStatus = ref('')
 const statusDescription = ref('')
-const executionFormRef = ref(null)
 const approvalFormRef = ref(null)
 
 // 预览相关状态
@@ -345,33 +282,37 @@ const previewError = ref('')
 const currentPreviewDocument = ref(null)
 const previewData = ref(null) // 存储解析后的文档数据
 
-const statusOptions = [
-  { value: 'draft', label: '草稿' },
-  { value: 'pending', label: '待审批' },
-  { value: 'approved', label: '已批准' },
-  { value: 'active', label: '已生效' },
-  { value: 'in_progress', label: '执行中' },
-  { value: 'pending_pay', label: '待付款' },
-  { value: 'completed', label: '已完成' },
-  { value: 'terminated', label: '已终止' }
-]
-
-const executionForm = reactive({
-  stage: '',
-  stage_date: '',
-  progress: 0,
-  payment_amount: 0,
-  payment_date: '',
-  description: ''
+const statusOptions = computed(() => {
+  const currentStatus = contract.value?.status
+  const options = []
+  
+  const allOptions = [
+    { value: 'draft', label: '草稿', from: ['pending', 'active'] },
+    { value: 'pending', label: '审批中', from: ['draft', 'approved'] },
+    { value: 'approved', label: '已批准', from: ['pending'] },
+    { value: 'active', label: '进行中', from: ['approved', 'in_progress', 'pending_pay'] },
+    { value: 'in_progress', label: '执行中', from: ['active'] },
+    { value: 'pending_pay', label: '待付款', from: ['active', 'in_progress'] },
+    { value: 'completed', label: '已完成', from: ['active', 'in_progress', 'pending_pay'] },
+    { value: 'terminated', label: '已终止', from: ['draft', 'pending', 'active', 'in_progress', 'pending_pay', 'completed'] }
+  ]
+  
+  for (const opt of allOptions) {
+    if (!currentStatus || opt.from.includes(currentStatus)) {
+      options.push(opt)
+    }
+  }
+  
+  return options
 })
+
+const getAvailableStatusOptions = () => {
+  return statusOptions.value
+}
 
 const approvalForm = reactive({
   comment: ''
 })
-
-const executionRules = {
-  stage: [{ required: true, message: '请输入阶段名称', trigger: 'blur' }]
-}
 
 const approvalRules = {
   comment: [{ required: true, message: '请输入审批意见', trigger: 'blur' }]
@@ -382,23 +323,8 @@ const contractId = computed(() => parseInt(route.params.id))
 watch(() => route.params.id, () => {
   if (route.params.id) {
     loadContract()
-    loadExecutions()
     loadDocuments()
     loadApprovals()
-  }
-})
-
-const contractAmount = computed(() => contract.value.amount || 0)
-
-watch(() => executionForm.payment_amount, (newVal) => {
-  if (contractAmount.value > 0) {
-    executionForm.progress = Math.round((newVal / contractAmount.value) * 100)
-  }
-})
-
-watch(() => executionForm.progress, (newVal) => {
-  if (contractAmount.value > 0) {
-    executionForm.payment_amount = Math.round((newVal / 100) * contractAmount.value * 100) / 100
   }
 })
 
@@ -426,7 +352,7 @@ const getStatusType = (status) => {
 const getStatusText = (status) => {
   const map = { 
     draft: '草稿', 
-    pending: '待审批', 
+    pending: '审批中', 
     approved: '已批准', 
     active: '已生效',
     in_progress: '执行中',
@@ -478,7 +404,7 @@ const getApprovalStatusType = (status) => {
 }
 
 const getApprovalStatusText = (status) => {
-  const map = { pending: '待审批', approved: '已批准', rejected: '已拒绝' }
+  const map = { pending: '审批中', approved: '已批准', rejected: '已拒绝' }
   return map[status] || status
 }
 
@@ -526,15 +452,6 @@ const formatDate = (dateStr) => {
 
 const loadContract = async () => {
   contract.value = await getContractDetail(contractId.value)
-}
-
-const loadExecutions = async () => {
-  executionsLoading.value = true
-  try {
-    executions.value = await getContractExecutions(contractId.value)
-  } finally {
-    executionsLoading.value = false
-  }
 }
 
 const loadDocuments = async () => {
@@ -611,22 +528,6 @@ const handleArchive = async () => {
 
 const handleEdit = () => {
   router.push(`/contracts?action=edit&id=${contractId.value}`)
-}
-
-const handleSubmitExecution = async () => {
-  await executionFormRef.value.validate()
-  await createContractExecution({ ...executionForm, contract_id: contractId.value })
-  ElMessage.success('添加成功')
-  showExecutionDialog.value = false
-  Object.assign(executionForm, { stage: '', stage_date: '', progress: 0, payment_amount: 0, payment_date: '', description: '' })
-  loadExecutions()
-}
-
-const handleDeleteExecution = async (row) => {
-  await ElMessageBox.confirm('确定删除该执行记录?', '提示', { type: 'warning' })
-  await deleteExecution(row.id)
-  ElMessage.success('删除成功')
-  loadExecutions()
 }
 
 const handleBeforeUpload = (file) => {
@@ -769,10 +670,10 @@ const handleSubmitApproval = async () => {
   showApprovalDialog.value = false
   approvalForm.comment = ''
   loadApprovals()
+  loadContract()
 }
 
 const tabChange = (tab) => {
-  if (tab === 'executions') loadExecutions()
   if (tab === 'documents') loadDocuments()
   if (tab === 'approvals') loadApprovals()
   if (tab === 'lifecycle') loadLifecycle()

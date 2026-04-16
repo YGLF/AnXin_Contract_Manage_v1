@@ -1,11 +1,19 @@
 import request from '@/utils/request'
 
 export const getContractList = (params) => {
-  return request({
-    url: '/contracts',
-    method: 'get',
-    params
-  })
+	return request({
+		url: '/contracts',
+		method: 'get',
+		params
+	})
+}
+
+export const getContracts = (params) => {
+	return request({
+		url: '/contracts',
+		method: 'get',
+		params
+	})
 }
 
 export const getContractDetail = (id) => {

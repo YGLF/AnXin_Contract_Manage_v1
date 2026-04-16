@@ -190,7 +190,7 @@ func TestContractService_GetContracts(t *testing.T) {
 	}
 
 	t.Run("get all contracts", func(t *testing.T) {
-		contracts, err := service.GetContracts(0, 10, 0, 0, "")
+		contracts, err := service.GetContracts(0, 10, 0, 0, "", "", nil)
 		if err != nil {
 			t.Errorf("GetContracts() error = %v", err)
 			return
@@ -201,7 +201,7 @@ func TestContractService_GetContracts(t *testing.T) {
 	})
 
 	t.Run("filter by customer", func(t *testing.T) {
-		contracts, err := service.GetContracts(0, 10, 1, 0, "")
+		contracts, err := service.GetContracts(0, 10, 1, 0, "", "", nil)
 		if err != nil {
 			t.Errorf("GetContracts() error = %v", err)
 			return
@@ -212,7 +212,7 @@ func TestContractService_GetContracts(t *testing.T) {
 	})
 
 	t.Run("pagination", func(t *testing.T) {
-		contracts, err := service.GetContracts(0, 2, 0, 0, "")
+		contracts, err := service.GetContracts(0, 2, 0, 0, "", "", nil)
 		if err != nil {
 			t.Errorf("GetContracts() error = %v", err)
 			return

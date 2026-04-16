@@ -296,7 +296,7 @@ func TestUserService_GetUsers(t *testing.T) {
 	}
 
 	t.Run("get users with pagination", func(t *testing.T) {
-		users, err := service.GetUsers(0, 3)
+		users, err := service.GetUsers(0, 3, "", "")
 		if err != nil {
 			t.Errorf("GetUsers() error = %v", err)
 			return
@@ -307,7 +307,7 @@ func TestUserService_GetUsers(t *testing.T) {
 	})
 
 	t.Run("get users with offset", func(t *testing.T) {
-		users, err := service.GetUsers(3, 10)
+		users, err := service.GetUsers(3, 10, "", "")
 		if err != nil {
 			t.Errorf("GetUsers() error = %v", err)
 			return

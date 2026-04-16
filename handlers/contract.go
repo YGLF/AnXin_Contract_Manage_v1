@@ -6,6 +6,8 @@ import (
 	"contract-manage/middleware"
 	"contract-manage/models"
 	"contract-manage/services"
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"net/http"
@@ -17,34 +19,72 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
-type ContractHandler struct {
-	contractService *services.ContractService
+// generateSafeFilename 生成安全的随机文件名
+// 防止路径遍历攻击
+func generateSafeFilename(originalName string) string {
+	ext := strings.ToLower(filepath.Ext(originalName))
+	randBytes := make([]byte, 16)
+	rand.Read(randBytes)
+	return hex.EncodeToString(randBytes) + ext
 }
 
-func NewContractHandler() *ContractHandler {
+// ContractHandler 合同处理器
+// 处理合同的CRUD操作、状态变更、文档管理等请求
+type ContractHandler struct {
+	contractService *services.ContractService // 合同服务实式
+	db              *gorm.DB                  // 数据库实例
+}
+
+// NewContractHandler 创建合同处理器实例
+// 返回：配置好的ContractHandler指针
+func NewContractHandler(db *gorm.DB) *ContractHandler {
 	return &ContractHandler{
 		contractService: services.NewContractService(),
+		db:              db,
 	}
 }
 
+// GetContracts 获取合同列表处理器
+// 支持分页、多条件筛选和角色可见性控制
+// GET /api/contracts
 func (h *ContractHandler) GetContracts(c *gin.Context) {
-	skip, _ := strconv.Atoi(c.DefaultQuery("skip", "0"))
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "100"))
-	customerID, _ := strconv.ParseUint(c.Query("customer_id"), 10, 32)
-	contractTypeID, _ := strconv.ParseUint(c.Query("contract_type_id"), 10, 32)
-	status := c.Query("status")
+	skip, _ := strconv.Atoi(c.DefaultQuery("skip", "0"))                        // 跳过记录数，默认0
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "100"))                    // 每页数量，默认100
+	customerID, _ := strconv.ParseUint(c.Query("customer_id"), 10, 32)          // 按客户筛选
+	contractTypeID, _ := strconv.ParseUint(c.Query("contract_type_id"), 10, 32) // 按合同类型筛选
+	status := c.Query("status")                                                 // 按状态筛选
+	title := c.Query("title")                                                   // 按标题搜索
 
-	contracts, err := h.contractService.GetContracts(skip, limit, uint(customerID), uint(contractTypeID), status)
+	// 获取当前用户信息用于可见性过滤
+	userID, _ := middleware.GetCurrentUserID(c)
+	role, _ := middleware.GetCurrentUserRole(c)
+
+	visibility := &services.ContractVisibilityParams{
+		UserID: userID,
+		Role:   role,
+	}
+
+	contracts, err := h.contractService.GetContracts(skip, limit, uint(customerID), uint(contractTypeID), status, title, visibility)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, contracts)
+	// 获取总数
+	count, _ := h.contractService.GetContractsCount(uint(customerID), uint(contractTypeID), status, title, visibility)
+
+	c.JSON(http.StatusOK, gin.H{
+		"data":  contracts,
+		"total": count,
+	})
 }
 
+// GetContractByID 获取合同详情处理器
+// 返回指定合同的完整信息
+// GET /api/contracts/:contract_id
 func (h *ContractHandler) GetContractByID(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("contract_id"), 10, 32)
 	if err != nil {
@@ -61,6 +101,9 @@ func (h *ContractHandler) GetContractByID(c *gin.Context) {
 	c.JSON(http.StatusOK, contract)
 }
 
+// CreateContract 创建合同处理器
+// 添加新的合同记录
+// POST /api/contracts
 func (h *ContractHandler) CreateContract(c *gin.Context) {
 	var input services.ContractCreateInput
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -83,6 +126,9 @@ func (h *ContractHandler) CreateContract(c *gin.Context) {
 	c.JSON(http.StatusCreated, contract)
 }
 
+// UpdateContract 更新合同处理器
+// 修改合同的基本信息
+// PUT /api/contracts/:contract_id
 func (h *ContractHandler) UpdateContract(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("contract_id"), 10, 32)
 	if err != nil {
@@ -105,6 +151,9 @@ func (h *ContractHandler) UpdateContract(c *gin.Context) {
 	c.JSON(http.StatusOK, contract)
 }
 
+// DeleteContract 删除合同处理器
+// 删除指定的合同记录
+// DELETE /api/contracts/:contract_id
 func (h *ContractHandler) DeleteContract(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("contract_id"), 10, 32)
 	if err != nil {
@@ -120,6 +169,9 @@ func (h *ContractHandler) DeleteContract(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
+// GetContractExecutions 获取合同执行记录列表处理器
+// 返回合同关联的所有执行阶段和进度记录
+// GET /api/contracts/:contract_id/executions
 func (h *ContractHandler) GetContractExecutions(c *gin.Context) {
 	contractID, err := strconv.ParseUint(c.Param("contract_id"), 10, 32)
 	if err != nil {
@@ -136,6 +188,9 @@ func (h *ContractHandler) GetContractExecutions(c *gin.Context) {
 	c.JSON(http.StatusOK, executions)
 }
 
+// CreateContractExecution 创建合同执行记录处理器
+// 添加合同的执行阶段或进度信息
+// POST /api/contracts/:contract_id/executions
 func (h *ContractHandler) CreateContractExecution(c *gin.Context) {
 	contractID, err := strconv.ParseUint(c.Param("contract_id"), 10, 32)
 	if err != nil {
@@ -166,6 +221,9 @@ func (h *ContractHandler) CreateContractExecution(c *gin.Context) {
 	c.JSON(http.StatusCreated, execution)
 }
 
+// DeleteExecution 删除执行记录处理器
+// 删除指定的执行记录
+// DELETE /api/executions/:execution_id
 func (h *ContractHandler) DeleteExecution(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("execution_id"), 10, 32)
 	if err != nil {
@@ -181,6 +239,9 @@ func (h *ContractHandler) DeleteExecution(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
+// GetContractDocuments 获取合同文档列表处理器
+// 返回合同关联的所有附件文档
+// GET /api/contracts/:contract_id/documents
 func (h *ContractHandler) GetContractDocuments(c *gin.Context) {
 	contractID, err := strconv.ParseUint(c.Param("contract_id"), 10, 32)
 	if err != nil {
@@ -197,6 +258,9 @@ func (h *ContractHandler) GetContractDocuments(c *gin.Context) {
 	c.JSON(http.StatusOK, documents)
 }
 
+// CreateContractDocument 上传合同文档处理器
+// 为合同上传附件文档
+// POST /api/contracts/:contract_id/documents
 func (h *ContractHandler) CreateContractDocument(c *gin.Context) {
 	contractID, err := strconv.ParseUint(c.Param("contract_id"), 10, 32)
 	if err != nil {
@@ -210,7 +274,23 @@ func (h *ContractHandler) CreateContractDocument(c *gin.Context) {
 		return
 	}
 
-	filename := file.Filename
+	// 安全检查：验证文件扩展名
+	ext := strings.ToLower(filepath.Ext(file.Filename))
+	allowedExts := []string{".pdf", ".doc", ".docx", ".xls", ".xlsx", ".jpg", ".jpeg", ".png", ".zip"}
+	isAllowed := false
+	for _, e := range allowedExts {
+		if ext == e {
+			isAllowed = true
+			break
+		}
+	}
+	if !isAllowed {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "不支持的文件类型"})
+		return
+	}
+
+	// 安全：生成随机文件名防止路径遍历
+	filename := generateSafeFilename(file.Filename)
 	uploadDir := config.AppConfig.UploadDir
 	if uploadDir == "" {
 		uploadDir = "uploads"
@@ -251,6 +331,10 @@ func (h *ContractHandler) CreateContractDocument(c *gin.Context) {
 	c.JSON(http.StatusCreated, document)
 }
 
+// PreviewDocument 预览文档处理器
+// 根据不同文件类型返回预览内容
+// 支持：PDF、图片、Word(.docx)提取文本、文本文件等
+// GET /api/documents/:document_id/preview
 func (h *ContractHandler) PreviewDocument(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("document_id"), 10, 32)
 	if err != nil {
@@ -372,6 +456,9 @@ func (h *ContractHandler) convertWordToHTML(docxPath, filePath string) (string, 
 	`, filepath.Base(docxPath), filePath), nil
 }
 
+// DeleteDocument 删除文档处理器
+// 删除合同关联的附件文档及其物理文件
+// DELETE /api/documents/:document_id
 func (h *ContractHandler) DeleteDocument(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("document_id"), 10, 32)
 	if err != nil {
@@ -387,6 +474,9 @@ func (h *ContractHandler) DeleteDocument(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
+// GetContractLifecycle 获取合同生命周期处理器
+// 返回合同的所有状态变更历史事件
+// GET /api/contracts/:contract_id/lifecycle
 func (h *ContractHandler) GetContractLifecycle(c *gin.Context) {
 	contractID, err := strconv.ParseUint(c.Param("contract_id"), 10, 32)
 	if err != nil {
@@ -403,6 +493,9 @@ func (h *ContractHandler) GetContractLifecycle(c *gin.Context) {
 	c.JSON(http.StatusOK, events)
 }
 
+// UpdateContractStatus 更新合同状态处理器
+// 直接更新合同状态（用于不需要审批的状态变更）
+// PUT /api/contracts/:contract_id/status
 func (h *ContractHandler) UpdateContractStatus(c *gin.Context) {
 	contractID, err := strconv.ParseUint(c.Param("contract_id"), 10, 32)
 	if err != nil {
@@ -411,8 +504,8 @@ func (h *ContractHandler) UpdateContractStatus(c *gin.Context) {
 	}
 
 	var input struct {
-		Status      string `json:"status" binding:"required"`
-		Description string `json:"description"`
+		Status      string `json:"status" binding:"required"` // 目标状态
+		Description string `json:"description"`               // 状态变更描述
 	}
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -434,6 +527,9 @@ func (h *ContractHandler) UpdateContractStatus(c *gin.Context) {
 	c.JSON(http.StatusOK, contract)
 }
 
+// ArchiveContract 归档合同处理器
+// 将合同标记为归档状态，归档需要管理员权限
+// POST /api/contracts/:contract_id/archive
 func (h *ContractHandler) ArchiveContract(c *gin.Context) {
 	contractID, err := strconv.ParseUint(c.Param("contract_id"), 10, 32)
 	if err != nil {
@@ -456,6 +552,9 @@ func (h *ContractHandler) ArchiveContract(c *gin.Context) {
 	c.JSON(http.StatusOK, contract)
 }
 
+// UploadContractTemplate 上传合同模板处理器
+// 上传Word文档(.docx)格式的合同模板并解析内容
+// POST /api/contracts/upload-template
 func (h *ContractHandler) UploadContractTemplate(c *gin.Context) {
 	file, header, err := c.Request.FormFile("file")
 	if err != nil {
@@ -516,6 +615,10 @@ func (h *ContractHandler) UploadContractTemplate(c *gin.Context) {
 	})
 }
 
+// parseDocxFile 解析Word文档内容
+// 从.docx文件中提取文本内容并解析合同信息
+// 参数：filePath-文件路径
+// 返回：解析后的合同数据映射
 func parseDocxFile(filePath string) (map[string]interface{}, error) {
 	text, err := extractTextFromDocx(filePath)
 	if err != nil {
@@ -531,6 +634,10 @@ func parseDocxFile(filePath string) (map[string]interface{}, error) {
 	return data, nil
 }
 
+// extractTextFromDocx 从Word文档提取纯文本内容
+// 通过解析docx的XML结构提取文本
+// 参数：filePath-文件路径
+// 返回：提取的纯文本内容
 func extractTextFromDocx(filePath string) (string, error) {
 	r, err := zip.OpenReader(filePath)
 	if err != nil {
@@ -541,6 +648,7 @@ func extractTextFromDocx(filePath string) (string, error) {
 	var text strings.Builder
 
 	for _, file := range r.File {
+		// docx文件的正文内容在word/document.xml中
 		if file.Name == "word/document.xml" {
 			rc, err := file.Open()
 			if err != nil {
@@ -553,6 +661,7 @@ func extractTextFromDocx(filePath string) (string, error) {
 				return "", err
 			}
 
+			// 正则匹配XML中的文本节点 <w:t>...</w:t>
 			re := regexp.MustCompile(`<w:t[^>]*>([^<]*)</w:t>`)
 			matches := re.FindAllStringSubmatch(string(content), -1)
 			for _, match := range matches {
@@ -568,6 +677,7 @@ func extractTextFromDocx(filePath string) (string, error) {
 	return text.String(), nil
 }
 
+// contentToString 将任意类型转换为字符串
 func contentToString(content interface{}) string {
 	switch v := content.(type) {
 	case string:
@@ -579,9 +689,14 @@ func contentToString(content interface{}) string {
 	}
 }
 
+// extractContractData 从合同文本中提取结构化数据
+// 使用正则表达式匹配合同关键字段
+// 参数：text-合同纯文本内容
+// 返回：包含合同信息的键值对映射
 func extractContractData(text string) map[string]interface{} {
 	data := make(map[string]interface{})
 
+	// 定义合同字段的正则匹配模式
 	patterns := map[string]string{
 		"contract_no":   `合同编号[：:]\s*([A-Z0-9\-]+)(?:\s|$|\n)`,
 		"title":         `合同名称[：:]\s*([^\n]+?)\s*(?:\n|$)`,
@@ -593,6 +708,7 @@ func extractContractData(text string) map[string]interface{} {
 		"contract_type": `合同类型[：:]\s*([^\n]+?)\s*(?:\n|$)`,
 	}
 
+	// 遍历所有模式进行匹配
 	for key, pattern := range patterns {
 		re := regexp.MustCompile(pattern)
 		matches := re.FindStringSubmatch(text)
@@ -620,6 +736,7 @@ func extractContractData(text string) map[string]interface{} {
 		}
 	}
 
+	// 从行中提取联系人信息
 	lines := strings.Split(text, "\n")
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
@@ -640,11 +757,16 @@ func extractContractData(text string) map[string]interface{} {
 	return data
 }
 
+// isValidDate 验证日期格式是否有效
+// 参数：date-日期字符串
+// 返回：是否有效
 func isValidDate(date string) bool {
 	re := regexp.MustCompile(`^\d{4}-\d{1,2}-\d{1,2}$`)
 	return re.MatchString(date)
 }
 
+// formatDate 格式化日期字符串
+// 将各种格式的日期统一转换为YYYY-MM-DD格式
 func formatDate(date string) string {
 	date = strings.ReplaceAll(date, "/", "-")
 	parts := strings.Split(date, "-")
@@ -654,6 +776,9 @@ func formatDate(date string) string {
 	return date
 }
 
+// CreateStatusChangeRequest 创建状态变更申请处理器
+// 创建状态变更申请，如果目标状态不需要审批则直接变更
+// POST /api/contracts/:contract_id/status-change
 func (h *ContractHandler) CreateStatusChangeRequest(c *gin.Context) {
 	contractID, err := strconv.ParseUint(c.Param("contract_id"), 10, 32)
 	if err != nil {
@@ -673,7 +798,9 @@ func (h *ContractHandler) CreateStatusChangeRequest(c *gin.Context) {
 		return
 	}
 
+	// 检查目标状态是否需要审批
 	if !h.contractService.IsStatusChangeRequireApproval(input.ToStatus) {
+		// 不需要审批，直接更新状态
 		contract, err := h.contractService.UpdateContractStatus(uint(contractID), input.ToStatus, userID)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -683,6 +810,7 @@ func (h *ContractHandler) CreateStatusChangeRequest(c *gin.Context) {
 		return
 	}
 
+	// 需要审批，创建申请
 	request, err := h.contractService.CreateStatusChangeRequest(uint(contractID), input, userID)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -690,6 +818,7 @@ func (h *ContractHandler) CreateStatusChangeRequest(c *gin.Context) {
 	}
 
 	if request == nil {
+		// 状态已直接更新
 		contract, err := h.contractService.UpdateContractStatus(uint(contractID), input.ToStatus, userID)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -702,6 +831,9 @@ func (h *ContractHandler) CreateStatusChangeRequest(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{"direct": false, "request": request})
 }
 
+// GetStatusChangeRequests 获取状态变更申请记录处理器
+// 返回合同的所有状态变更申请历史
+// GET /api/contracts/:contract_id/status-change
 func (h *ContractHandler) GetStatusChangeRequests(c *gin.Context) {
 	contractID, err := strconv.ParseUint(c.Param("contract_id"), 10, 32)
 	if err != nil {
@@ -718,6 +850,9 @@ func (h *ContractHandler) GetStatusChangeRequests(c *gin.Context) {
 	c.JSON(http.StatusOK, requests)
 }
 
+// GetPendingStatusChangeApprovals 获取待审批状态变更列表处理器
+// 返回当前用户角色需要审批的状态变更申请
+// GET /api/pending-status-changes
 func (h *ContractHandler) GetPendingStatusChangeApprovals(c *gin.Context) {
 	role, _ := middleware.GetCurrentUserRole(c)
 	if role == "" {
@@ -733,6 +868,9 @@ func (h *ContractHandler) GetPendingStatusChangeApprovals(c *gin.Context) {
 	c.JSON(http.StatusOK, requests)
 }
 
+// ApproveStatusChangeRequest 审批通过状态变更处理器
+// 管理员/审计管理员审批状态变更申请
+// POST /api/status-change-requests/:request_id/approve
 func (h *ContractHandler) ApproveStatusChangeRequest(c *gin.Context) {
 	requestID, err := strconv.ParseUint(c.Param("request_id"), 10, 32)
 	if err != nil {
@@ -741,7 +879,7 @@ func (h *ContractHandler) ApproveStatusChangeRequest(c *gin.Context) {
 	}
 
 	var input struct {
-		Comment string `json:"comment"`
+		Comment string `json:"comment"` // 审批意见
 	}
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -763,6 +901,9 @@ func (h *ContractHandler) ApproveStatusChangeRequest(c *gin.Context) {
 	c.JSON(http.StatusOK, result)
 }
 
+// RejectStatusChangeRequest 拒绝状态变更处理器
+// 管理员/审计管理员拒绝状态变更申请
+// POST /api/status-change-requests/:request_id/reject
 func (h *ContractHandler) RejectStatusChangeRequest(c *gin.Context) {
 	requestID, err := strconv.ParseUint(c.Param("request_id"), 10, 32)
 	if err != nil {
@@ -771,7 +912,7 @@ func (h *ContractHandler) RejectStatusChangeRequest(c *gin.Context) {
 	}
 
 	var input struct {
-		Comment string `json:"comment"`
+		Comment string `json:"comment"` // 拒绝原因
 	}
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})

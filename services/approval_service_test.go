@@ -45,12 +45,6 @@ func setupApprovalTestDB(t *testing.T) func() {
 		Role:     models.RoleAdmin,
 	})
 	userService.CreateUser(UserCreateInput{
-		Username: "manager",
-		Email:    "manager@example.com",
-		Password: "password123",
-		Role:     models.RoleManager,
-	})
-	userService.CreateUser(UserCreateInput{
 		Username: "user",
 		Email:    "user@example.com",
 		Password: "password123",
@@ -431,39 +425,39 @@ func TestApprovalService_GetStatistics(t *testing.T) {
 	contracts := []models.Contract{
 		{
 			ContractNo:     "STA001",
-			Title:         "草稿合同",
-			CustomerID:    1,
+			Title:          "草稿合同",
+			CustomerID:     1,
 			ContractTypeID: 1,
-			CreatorID:     1,
-			Amount:        10000,
-			Status:        models.StatusDraft,
+			CreatorID:      1,
+			Amount:         10000,
+			Status:         models.StatusDraft,
 		},
 		{
 			ContractNo:     "STA002",
-			Title:         "生效合同",
-			CustomerID:    1,
+			Title:          "生效合同",
+			CustomerID:     1,
 			ContractTypeID: 1,
-			CreatorID:     1,
-			Amount:        20000,
-			Status:        models.StatusActive,
+			CreatorID:      1,
+			Amount:         20000,
+			Status:         models.StatusActive,
 		},
 		{
 			ContractNo:     "STA003",
-			Title:         "待审批合同",
-			CustomerID:    1,
+			Title:          "待审批合同",
+			CustomerID:     1,
 			ContractTypeID: 1,
-			CreatorID:     1,
-			Amount:        30000,
-			Status:        models.StatusPending,
+			CreatorID:      1,
+			Amount:         30000,
+			Status:         models.StatusPending,
 		},
 		{
 			ContractNo:     "STA004",
-			Title:         "已完成合同",
-			CustomerID:    1,
+			Title:          "已完成合同",
+			CustomerID:     1,
 			ContractTypeID: 1,
-			CreatorID:     1,
-			Amount:        40000,
-			Status:        models.StatusCompleted,
+			CreatorID:      1,
+			Amount:         40000,
+			Status:         models.StatusCompleted,
 		},
 	}
 
@@ -504,11 +498,11 @@ func TestApprovalService_GetPendingStatusChangesCount(t *testing.T) {
 
 	contract := models.Contract{
 		ContractNo:     "CNT001",
-		Title:         "状态变更计数测试",
-		CustomerID:    1,
+		Title:          "状态变更计数测试",
+		CustomerID:     1,
 		ContractTypeID: 1,
-		CreatorID:     1,
-		Status:        models.StatusActive,
+		CreatorID:      1,
+		Status:         models.StatusActive,
 	}
 	models.DB.Create(&contract)
 
