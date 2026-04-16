@@ -75,7 +75,7 @@ install_docker() {
     fi
 
     # 安装必要组件
-    yum install -y yum-utils device-mapper-persistent-data lvm2 wget curl
+    yum install -y yum-utils device-mapper-persistent-data lvm2 wget curl git
 
     # 添加Docker官方仓库（使用国内镜像）
     log_info "配置Docker仓库..."
@@ -96,9 +96,9 @@ EOF
     cat > /etc/docker/daemon.json <<'EOF'
 {
     "registry-mirrors": [
-        "https://docker.mirrors.ustc.edu.cn",
-        "https://hub-mirror.c.163.com",
-        "https://mirror.baidubce.com"
+        "https://docker.1ms.run",
+        "https://docker.xuanyuan.me",
+        "https://hub-mirror.c.163.com"
     ],
     "log-driver": "json-file",
     "log-opts": {
@@ -108,6 +108,8 @@ EOF
     "storage-driver": "overlay2"
 }
 EOF
+    # 重启Docker使配置生效
+    systemctl restart docker
 
     # 启动Docker
     systemctl start docker
@@ -128,9 +130,9 @@ install_docker_compose() {
         return 0
     fi
 
-    # 检查旧版docker-compose
-    if command -v docker-compose &> /dev/null; then
-        log_info "docker-compose已安装: $(docker-compose --version)"
+    # 检查旧版docker compose
+    if command -v docker compose &> /dev/null; then
+        log_info "docker compose已安装: $(docker compose --version)"
         return 0
     fi
 
@@ -139,10 +141,10 @@ install_docker_compose() {
     # 下载二进制文件（使用国内镜像）
     curl -SL "https://github.com/docker/compose/releases/download/v2.24.5/docker-compose-linux-x86_64" -o /usr/local/bin/docker-compose
 
-    chmod +x /usr/local/bin/docker-compose
-    ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose
+    chmod +x /usr/local/bin/docker compose
+    ln -sf /usr/local/bin/docker compose /usr/bin/docker compose
 
-    log_info "Docker Compose安装完成: $(docker-compose --version)"
+    log_info "Docker Compose安装完成: $(docker compose --version)"
 }
 
 #===============================================================================
@@ -226,8 +228,8 @@ EOF
         sed -i "s/MYSQL_PASSWORD: contract123/MYSQL_PASSWORD: ${DB_PASSWORD}/g" docker-compose.yml
     fi
 
-    if grep -q "MYSQL_PASSWORD: contract123" docker-compose.yml; then
-        sed -i "s/MYSQL_PASSWORD=contract123/MYSQL_PASSWORD=${DB_PASSWORD}/g" docker-compose.yml
+    if grep -q "MYSQL_PASSWORD= contract123" docker-compose.yml; then
+        sed -i "s/MYSQL_PASSWORD= contract123/MYSQL_PASSWORD=${DB_PASSWORD}/g" docker-compose.yml
     fi
 
     log_info "已创建生产环境配置文件: ${PROJECT_ROOT}/.env.production"
@@ -263,7 +265,7 @@ deploy_services() {
 
     # 停止旧容器
     log_info "停止旧容器（如有）..."
-    docker-compose down 2>/dev/null || true
+    docker compose down 2>/dev/null || true
 
     # 清理旧的MySQL数据（全新部署时）
     if [[ ! -d "./mysql_data" ]] && [[ -z "$(docker volume ls -q contract-manage_mysql_data 2>/dev/null)" ]]; then
@@ -277,7 +279,7 @@ deploy_services() {
 
     while [[ $retry -lt $max_retries ]]; do
         log_info "构建镜像... (尝试 $((retry + 1))/$max_retries)"
-        if docker-compose build --parallel 2>&1; then
+        if docker compose build --parallel 2>&1; then
             break
         fi
         retry=$((retry + 1))
@@ -287,13 +289,13 @@ deploy_services() {
     done
 
     if [[ $retry -eq $max_retries ]]; then
-        log_error "构建失败，请检查Docker日志: docker-compose logs"
+        log_error "构建失败，请检查Docker日志: docker compose logs"
         exit 1
     fi
 
     # 启动服务
     log_info "启动所有服务..."
-    docker-compose up -d
+    docker compose up -d
 
     # 等待MySQL就绪
     log_info "等待MySQL初始化..."
@@ -340,7 +342,7 @@ verify_services() {
 
     echo ""
     echo "容器运行状态:"
-    docker-compose ps
+    docker compose ps
     echo ""
 
     # 检查端口
@@ -456,10 +458,10 @@ echo " 【备份信息】"
     echo ""
     echo "========================================================================"
     echo "  【常用命令】"
-    echo "    查看日志:   docker-compose logs -f"
-    echo "    重启服务:   docker-compose restart"
-    echo "    停止服务:   docker-compose down"
-    echo "    启动服务:   docker-compose up -d"
+    echo "    查看日志:   docker compose logs -f"
+    echo "    重启服务:   docker compose restart"
+    echo "    停止服务:   docker compose down"
+    echo "    启动服务:   docker compose up -d"
     echo "    手动备份:   ./backup.sh"
     echo "========================================================================"
     echo ""
